@@ -16,6 +16,10 @@ class EMG_FAQ_Plugin
     const OPT_DEFAULT_SCHEMA = 'emg_faq_default_schema_json';
     const OPT_DISPLAY_MODE = 'emg_faq_display_mode';
     const OPT_MANUAL_SCHEMA = 'emg_faq_manual_schema_enabled';
+    const OPT_Q_FONT_SIZE = 'emg_faq_question_font_size';
+    const OPT_Q_COLOR = 'emg_faq_question_color';
+    const OPT_A_FONT_SIZE = 'emg_faq_answer_font_size';
+    const OPT_A_COLOR = 'emg_faq_answer_color';
 
     const STYLE_HANDLE = 'emg-faq-frontend';
 
@@ -76,6 +80,23 @@ class EMG_FAQ_Plugin
 
     private function get_frontend_css()
     {
+        $question_font_size = (int) get_option(self::OPT_Q_FONT_SIZE, 16);
+        if ($question_font_size < 8 || $question_font_size > 72) {
+            $question_font_size = 16;
+        }
+        $question_color = sanitize_hex_color((string) get_option(self::OPT_Q_COLOR, '#111827'));
+        if (empty($question_color)) {
+            $question_color = '#111827';
+        }
+        $answer_font_size = (int) get_option(self::OPT_A_FONT_SIZE, 16);
+        if ($answer_font_size < 8 || $answer_font_size > 72) {
+            $answer_font_size = 16;
+        }
+        $answer_color = sanitize_hex_color((string) get_option(self::OPT_A_COLOR, '#374151'));
+        if (empty($answer_color)) {
+            $answer_color = '#374151';
+        }
+
         return '
 .emg-faq-box {
 	margin: 28px 0;
@@ -95,17 +116,24 @@ class EMG_FAQ_Plugin
 	border-top: 0;
 	padding-top: 0;
 }
-.emg-faq-box summary {
+.emg-faq-box .emg-faq-question {
+	width: 100%;
+	background: transparent;
+	border: 0;
+	padding: 0 24px 0 0;
+	text-align: left;
 	cursor: pointer;
 	font-weight: 700;
-	list-style: none;
 	position: relative;
-	padding-right: 24px;
+	font-size: ' . $question_font_size . 'px;
+	color: ' . $question_color . ';
 }
-.emg-faq-box summary::-webkit-details-marker {
-	display: none;
+.emg-faq-box .emg-faq-question-text {
+	font-size: ' . $question_font_size . 'px;
+	color: ' . $question_color . ';
+	font-weight: 700;
 }
-.emg-faq-box summary::after {
+.emg-faq-box .emg-faq-question::after {
 	content: "+";
 	position: absolute;
 	right: 0;
@@ -115,13 +143,15 @@ class EMG_FAQ_Plugin
 	line-height: 1;
 	transition: transform 0.25s ease, opacity 0.25s ease;
 }
-.emg-faq-box details[open] summary::after {
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::after {
 	content: "−";
 	transform: translateY(-50%) scale(1.05);
 }
 .emg-faq-box .emg-faq-answer {
 	margin-top: 8px;
 	line-height: 1.6;
+	font-size: ' . $answer_font_size . 'px;
+	color: ' . $answer_color . ';
 }
 .emg-faq-box .emg-faq-panel {
 	overflow: hidden;
@@ -131,7 +161,7 @@ class EMG_FAQ_Plugin
 	transition: max-height 0.28s ease, opacity 0.22s ease, transform 0.22s ease;
 	will-change: max-height, opacity, transform;
 }
-.emg-faq-box details[open] .emg-faq-panel {
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-panel {
 	opacity: 1;
 	transform: translateY(0);
 }
@@ -158,56 +188,69 @@ class EMG_FAQ_Plugin
         $printed = true;
         ?>
         <script id="emg-faq-accordion">
-        (function () {
-            function animateFaqToggle(detailsEl, forceOpen) {
-                var panel = detailsEl.querySelector('.emg-faq-panel');
-                if (!panel) return;
-                var willOpen = typeof forceOpen === 'boolean' ? forceOpen : !detailsEl.open;
-                if (willOpen) {
-                    detailsEl.open = true;
-                    panel.style.maxHeight = '0px';
-                    panel.style.opacity = '0';
-                    panel.style.transform = 'translateY(-4px)';
-                    window.requestAnimationFrame(function () {
-                        panel.style.maxHeight = panel.scrollHeight + 'px';
-                        panel.style.opacity = '1';
-                        panel.style.transform = 'translateY(0)';
-                    });
-                } else {
-                    panel.style.maxHeight = panel.scrollHeight + 'px';
-                    panel.style.opacity = '1';
-                    panel.style.transform = 'translateY(0)';
-                    window.requestAnimationFrame(function () {
+            (function () {
+                function animateFaqToggle(itemEl, forceOpen) {
+                    var panel = itemEl.querySelector('.emg-faq-panel');
+                    var trigger = itemEl.querySelector('.emg-faq-question');
+                    if (!panel) return;
+                    var willOpen = typeof forceOpen === 'boolean' ? forceOpen : !itemEl.classList.contains('is-open');
+                    if (willOpen) {
+                        itemEl.classList.add('is-open');
+                        if (trigger) {
+                            trigger.setAttribute('aria-expanded', 'true');
+                        }
+                        panel.hidden = false;
                         panel.style.maxHeight = '0px';
                         panel.style.opacity = '0';
                         panel.style.transform = 'translateY(-4px)';
-                    });
-                    window.setTimeout(function () {
-                        detailsEl.open = false;
-                    }, 280);
-                }
-            }
-            document.querySelectorAll('.emg-faq-box').forEach(function (scope) {
-                scope.querySelectorAll('details.emg-faq-item').forEach(function (detailsEl) {
-                    var summary = detailsEl.querySelector('summary');
-                    var panel = detailsEl.querySelector('.emg-faq-panel');
-                    if (!summary || !panel) return;
-                    if (detailsEl.open) {
-                        panel.style.maxHeight = panel.scrollHeight + 'px';
-                        panel.style.opacity = '1';
-                        panel.style.transform = 'translateY(0)';
+                        window.requestAnimationFrame(function () {
+                            panel.style.maxHeight = panel.scrollHeight + 'px';
+                            panel.style.opacity = '1';
+                            panel.style.transform = 'translateY(0)';
+                        });
                     } else {
-                        panel.style.maxHeight = '0px';
-                        panel.style.opacity = '0';
-                        panel.style.transform = 'translateY(-4px)';
+                        panel.style.maxHeight = panel.scrollHeight + 'px';
+                        panel.style.opacity = '1';
+                        panel.style.transform = 'translateY(0)';
+                        window.requestAnimationFrame(function () {
+                            panel.style.maxHeight = '0px';
+                            panel.style.opacity = '0';
+                            panel.style.transform = 'translateY(-4px)';
+                        });
+                        window.setTimeout(function () {
+                            itemEl.classList.remove('is-open');
+                            if (trigger) {
+                                trigger.setAttribute('aria-expanded', 'false');
+                            }
+                            panel.hidden = true;
+                        }, 280);
                     }
-                    summary.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        animateFaqToggle(detailsEl);
+                }
+                document.querySelectorAll('.emg-faq-box').forEach(function (scope) {
+                    scope.querySelectorAll('.emg-faq-item.emg-faq-acc-item').forEach(function (itemEl) {
+                        var trigger = itemEl.querySelector('.emg-faq-question');
+                        var panel = itemEl.querySelector('.emg-faq-panel');
+                        if (!trigger || !panel) return;
+                        if (itemEl.classList.contains('is-open')) {
+                            panel.style.maxHeight = panel.scrollHeight + 'px';
+                            panel.style.opacity = '1';
+                            panel.style.transform = 'translateY(0)';
+                            panel.hidden = false;
+                            trigger.setAttribute('aria-expanded', 'true');
+                        } else {
+                            panel.style.maxHeight = '0px';
+                            panel.style.opacity = '0';
+                            panel.style.transform = 'translateY(-4px)';
+                            panel.hidden = true;
+                            trigger.setAttribute('aria-expanded', 'false');
+                        }
+                        trigger.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            animateFaqToggle(itemEl);
+                        });
                     });
                 });
-            });
-        })();
+            })();
         </script>
         <?php
     }
@@ -231,6 +274,10 @@ class EMG_FAQ_Plugin
         register_setting('emg_faq_settings', self::OPT_DEFAULT_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_schema_text')));
         register_setting('emg_faq_settings', self::OPT_DISPLAY_MODE, array('sanitize_callback' => array($this, 'sanitize_display_mode')));
         register_setting('emg_faq_settings', self::OPT_MANUAL_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
+        register_setting('emg_faq_settings', self::OPT_Q_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
+        register_setting('emg_faq_settings', self::OPT_Q_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
+        register_setting('emg_faq_settings', self::OPT_A_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
+        register_setting('emg_faq_settings', self::OPT_A_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
     }
 
     public function sanitize_text($value)
@@ -285,6 +332,24 @@ class EMG_FAQ_Plugin
         return in_array($value, array('plain', 'accordion'), true) ? $value : 'accordion';
     }
 
+    public function sanitize_font_size($value)
+    {
+        $size = (int) $value;
+        if ($size < 8) {
+            $size = 8;
+        }
+        if ($size > 72) {
+            $size = 72;
+        }
+        return (string) $size;
+    }
+
+    public function sanitize_color($value)
+    {
+        $color = sanitize_hex_color((string) $value);
+        return $color ? $color : '#111827';
+    }
+
     public function admin_footer_schema_toggle_script()
     {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
@@ -293,14 +358,14 @@ class EMG_FAQ_Plugin
         }
         ?>
         <script>
-        (function () {
-            var cb = document.getElementById('emg-faq-manual-schema-enabled');
-            var wrap = document.getElementById('emg-faq-schema-field-wrap');
-            if (!cb || !wrap) return;
-            function sync() { wrap.style.display = cb.checked ? 'block' : 'none'; }
-            cb.addEventListener('change', sync);
-            sync();
-        })();
+            (function () {
+            var cb = document.getElementById('emg-faq-auto-schema-enabled');
+                var wrap = document.getElementById('emg-faq-schema-field-wrap');
+                if (!cb || !wrap) return;
+            function sync() { wrap.style.display = cb.checked ? 'none' : 'block'; }
+                cb.addEventListener('change', sync);
+                sync();
+            })();
         </script>
         <?php
     }
@@ -313,44 +378,110 @@ class EMG_FAQ_Plugin
         $default_faq = (string) get_option(self::OPT_DEFAULT_FAQ, '');
         $default_schema = (string) get_option(self::OPT_DEFAULT_SCHEMA, '');
         $display_mode = (string) get_option(self::OPT_DISPLAY_MODE, 'accordion');
-        $manual_schema = (string) get_option(self::OPT_MANUAL_SCHEMA, '0');
+        $auto_schema = (string) get_option(self::OPT_MANUAL_SCHEMA, '1');
+        $question_font_size = (string) get_option(self::OPT_Q_FONT_SIZE, '16');
+        $question_color = (string) get_option(self::OPT_Q_COLOR, '#111827');
+        $answer_font_size = (string) get_option(self::OPT_A_FONT_SIZE, '16');
+        $answer_color = (string) get_option(self::OPT_A_COLOR, '#374151');
         ?>
         <div class="wrap">
             <h1>EMG FAQ</h1>
-            <p>Global default FAQ when shortcode has <strong>no inner content</strong>. Format: one line per item → <code>Question || Answer</code></p>
-            <p>Use <code>{{city}}</code> in defaults; shortcode <code>city="…"</code> replaces it in FAQ + schema.</p>
-            <p><strong>Inner shortcode:</strong> Must close with <code>[/emg_faq]</code> (not <code>[emg_faq]</code>). Any HTML or plain text inside is printed; <code>city="…"</code> replaces <code>{{city}}</code>, <code>{city}</code>, <code>{City}</code>. Optional structure: <code>&lt;h3&gt;Q&lt;/h3&gt;&lt;p&gt;A&lt;/p&gt;</code> for FAQ list + auto schema.</p>
+            <p>Use this page to control your FAQ shortcode output.</p>
+            <p>FAQ format: one line per item, like <code>Question || Answer</code>.</p>
+
+
+            <h2 style="margin-top:20px;">Shortcode Examples</h2>
+            <p><strong>1) Use saved FAQ list:</strong><br><code>[emg_faq city="Dallas" class="faq-box"]</code></p>
+            <p><strong>2) Full city replacement example (FAQ + schema):</strong><br>
+                In <strong>FAQ List</strong>, add this line:<br>
+                <code>What is portable storage in {{city}}? || Portable storage in {{city}} is a container service.</code><br>
+                Then use shortcode:<br>
+                <code>[emg_faq city="Dallas"]</code><br>
+                Frontend FAQ output becomes:<br>
+                <code>What is portable storage in Dallas?</code><br>
+                <code>Portable storage in Dallas is a container service.</code><br>
+                Schema output will also use <code>Dallas</code> in the same places.
+            </p>
+            <p><strong>3) Mode example (Plain vs Accordion):</strong><br>
+                Plain mode shortcode: <code>[emg_faq city="Dallas" mode="plain"]</code><br>
+                Accordion mode shortcode: <code>[emg_faq city="Dallas" mode="accordion"]</code><br>
+                If <code>mode</code> is not set in shortcode, plugin uses the global <strong>FAQ View Style</strong> selected
+                below.
+            </p>
+            <p><strong>4) Custom content inside shortcode (overrides FAQ list):</strong><br>
+                <code>[emg_faq city="Dallas" mode="plain"]&lt;h3&gt;Question&lt;/h3&gt;&lt;p&gt;Answer&lt;/p&gt;[/emg_faq]</code>
+            </p>
+
+
             <form method="post" action="options.php">
                 <?php settings_fields('emg_faq_settings'); ?>
                 <?php settings_errors('emg_faq_settings'); ?>
-                <h2>Default FAQ (Global)</h2>
+                <h2>FAQ List</h2>
                 <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>" rows="16"
                     style="width:100%;"><?php echo esc_textarea($default_faq); ?></textarea>
 
-                <h2 style="margin-top:24px;">FAQ Schema</h2>
+                <h2 style="margin-top:24px;">Schema Settings</h2>
                 <p>
                     <label>
                         <input type="hidden" name="<?php echo esc_attr(self::OPT_MANUAL_SCHEMA); ?>" value="0" />
-                        <input type="checkbox" id="emg-faq-manual-schema-enabled" name="<?php echo esc_attr(self::OPT_MANUAL_SCHEMA); ?>"
-                            value="1" <?php checked($manual_schema, '1'); ?> />
-                        Use custom default FAQ schema (JSON-LD)
+                        <input type="checkbox" id="emg-faq-auto-schema-enabled"
+                            name="<?php echo esc_attr(self::OPT_MANUAL_SCHEMA); ?>" value="1" <?php checked($auto_schema, '1'); ?> />
+                        Auto generate schema from FAQ items
                     </label>
                 </p>
-                <p class="description">Unchecked: schema is <strong>auto-generated</strong> from the FAQ items shown on the page (no manual JSON field needed). Checked: the textarea below is saved and used when valid; if empty or invalid, auto schema is used.</p>
+                <p class="description">
+                    <strong>Checked:</strong> schema is auto-created from visible FAQ items.<br>
+                    <strong>Unchecked:</strong> custom schema box appears below, and you can provide your own JSON-LD.<br>
+                    If custom JSON is empty or invalid, plugin falls back to auto schema.
+                </p>
 
-                <div id="emg-faq-schema-field-wrap" style="<?php echo $manual_schema === '1' ? '' : 'display:none;'; ?>">
-                    <h3>Default FAQ Schema (Global JSON-LD)</h3>
+                <div id="emg-faq-schema-field-wrap" style="<?php echo $auto_schema === '1' ? 'display:none;' : ''; ?>">
+                    <h3>Custom Schema JSON (Optional)</h3>
                     <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_SCHEMA); ?>" rows="14"
                         style="width:100%;"><?php echo esc_textarea($default_schema); ?></textarea>
                 </div>
 
-                <h2 style="margin-top:24px;">FAQ Display Mode</h2>
+                <h2 style="margin-top:24px;">FAQ View Style</h2>
                 <select name="<?php echo esc_attr(self::OPT_DISPLAY_MODE); ?>">
                     <option value="accordion" <?php selected($display_mode, 'accordion'); ?>>Accordion</option>
-                    <option value="plain" <?php selected($display_mode, 'plain'); ?>>Plain Question + Answer</option>
+                    <option value="plain" <?php selected($display_mode, 'plain'); ?>>Plain (Question and Answer)</option>
                 </select>
 
-                <?php submit_button('Save EMG FAQ Settings'); ?>
+                <h2 style="margin-top:24px;">FAQ Text Style (Plain + Accordion)</h2>
+                <p>
+                    <label>
+                        Question font size (px):
+                        <input type="number" min="8" max="72" step="1"
+                            name="<?php echo esc_attr(self::OPT_Q_FONT_SIZE); ?>"
+                            value="<?php echo esc_attr($question_font_size); ?>" />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Question font color:
+                        <input type="color"
+                            name="<?php echo esc_attr(self::OPT_Q_COLOR); ?>"
+                            value="<?php echo esc_attr($question_color); ?>" />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Answer font size (px):
+                        <input type="number" min="8" max="72" step="1"
+                            name="<?php echo esc_attr(self::OPT_A_FONT_SIZE); ?>"
+                            value="<?php echo esc_attr($answer_font_size); ?>" />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Answer font color:
+                        <input type="color"
+                            name="<?php echo esc_attr(self::OPT_A_COLOR); ?>"
+                            value="<?php echo esc_attr($answer_color); ?>" />
+                    </label>
+                </p>
+
+                <?php submit_button('Save Settings'); ?>
             </form>
         </div>
         <?php
@@ -390,12 +521,12 @@ class EMG_FAQ_Plugin
                 $atts['title'] = $this->replace_city_placeholder($atts['title'], $city_name);
             }
             $items = $this->parse_faq_lines($faq_raw);
-            $manual_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '0') === '1';
+            $auto_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '1') === '1';
             $schema_raw = $this->normalize_schema_json((string) get_option(self::OPT_DEFAULT_SCHEMA, ''));
             if ($city_name !== '') {
                 $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
             }
-            $schema_final = $this->resolve_schema_for_output($items, $schema_raw, $manual_schema_on);
+            $schema_final = $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on);
             return $this->render_faq_block($atts['title'], $items, $schema_final, $display_mode, $atts['class']);
         }
 
@@ -403,7 +534,7 @@ class EMG_FAQ_Plugin
         $inner_safe = wp_kses_post($inner_after_shortcodes);
         $items = $this->parse_faq_inner_content($inner_safe);
 
-        $manual_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '0') === '1';
+        $auto_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '1') === '1';
         $schema_raw = $this->normalize_schema_json((string) get_option(self::OPT_DEFAULT_SCHEMA, ''));
         if ($city_name !== '') {
             $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
@@ -417,7 +548,7 @@ class EMG_FAQ_Plugin
                 }
                 $atts['title'] = $this->replace_city_placeholder($atts['title'], $city_name);
             }
-            $schema_final = $this->resolve_schema_for_output($items, $schema_raw, $manual_schema_on);
+            $schema_final = $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on);
             return $this->render_faq_block($atts['title'], $items, $schema_final, $display_mode, $atts['class']);
         }
 
@@ -429,7 +560,7 @@ class EMG_FAQ_Plugin
         if ($city_name !== '') {
             $atts['title'] = $this->replace_city_placeholder($atts['title'], $city_name);
         }
-        $schema_final = $this->resolve_schema_for_freeform($schema_raw, $manual_schema_on);
+        $schema_final = $this->resolve_schema_for_freeform($schema_raw, $auto_schema_on);
 
         return $this->render_faq_freeform($atts['title'], $body, $schema_final, $atts['class']);
     }
@@ -437,9 +568,9 @@ class EMG_FAQ_Plugin
     /**
      * Freeform inner content: no FAQ pairs → no auto FAQPage; optional manual JSON-LD only.
      */
-    private function resolve_schema_for_freeform($schema_raw, $manual_schema_on)
+    private function resolve_schema_for_freeform($schema_raw, $auto_schema_on)
     {
-        if (!$manual_schema_on) {
+        if ($auto_schema_on) {
             return '';
         }
         $schema_raw = trim((string) $schema_raw);
@@ -473,13 +604,13 @@ class EMG_FAQ_Plugin
     /**
      * Manual schema when enabled + valid; otherwise auto FAQPage from items.
      */
-    private function resolve_schema_for_output($items, $schema_raw, $manual_schema_on)
+    private function resolve_schema_for_output($items, $schema_raw, $auto_schema_on)
     {
         if (empty($items)) {
             return '';
         }
 
-        if ($manual_schema_on) {
+        if (!$auto_schema_on) {
             $schema_raw = trim((string) $schema_raw);
             if ($schema_raw !== '' && $this->is_valid_json($schema_raw)) {
                 return $schema_raw;
@@ -625,18 +756,20 @@ class EMG_FAQ_Plugin
                 ?>
                 <?php if ($is_plain): ?>
                     <div class="emg-faq-item">
-                        <div><strong><?php echo $q_esc; ?></strong></div>
+                        <div class="emg-faq-question-text"><?php echo $q_esc; ?></div>
                         <div class="emg-faq-answer">
                             <?php echo $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']); ?>
                         </div>
                     </div>
                 <?php else: ?>
-                    <details class="emg-faq-item">
-                        <summary><?php echo $q_esc; ?></summary>
-                        <div class="emg-faq-answer emg-faq-panel">
+                    <div class="emg-faq-item emg-faq-acc-item">
+                        <button type="button" class="emg-faq-question" aria-expanded="false">
+                            <?php echo $q_esc; ?>
+                        </button>
+                        <div class="emg-faq-answer emg-faq-panel" hidden>
                             <?php echo $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']); ?>
                         </div>
-                    </details>
+                    </div>
                 <?php endif; ?>
             <?php endforeach; ?>
         </section>
