@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 1.1.2
+ * Version: 1.2.0
  * Author: Hridoy Ahmed
  */
 
@@ -16,6 +16,7 @@ class EMG_FAQ_Plugin
     const OPT_DEFAULT_SCHEMA = 'emg_faq_default_schema_json';
     const OPT_DISPLAY_MODE = 'emg_faq_display_mode';
     const OPT_MANUAL_SCHEMA = 'emg_faq_manual_schema_enabled';
+    const OPT_DISABLE_SCHEMA = 'emg_faq_disable_schema_output';
     const OPT_Q_FONT_SIZE = 'emg_faq_question_font_size';
     const OPT_Q_COLOR = 'emg_faq_question_color';
     const OPT_A_FONT_SIZE = 'emg_faq_answer_font_size';
@@ -73,7 +74,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '1.1.2');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.0');
         wp_enqueue_style(self::STYLE_HANDLE);
         wp_add_inline_style(self::STYLE_HANDLE, $this->get_frontend_css());
     }
@@ -274,6 +275,7 @@ class EMG_FAQ_Plugin
         register_setting('emg_faq_settings', self::OPT_DEFAULT_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_schema_text')));
         register_setting('emg_faq_settings', self::OPT_DISPLAY_MODE, array('sanitize_callback' => array($this, 'sanitize_display_mode')));
         register_setting('emg_faq_settings', self::OPT_MANUAL_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
+        register_setting('emg_faq_settings', self::OPT_DISABLE_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
         register_setting('emg_faq_settings', self::OPT_Q_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
         register_setting('emg_faq_settings', self::OPT_Q_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
         register_setting('emg_faq_settings', self::OPT_A_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
@@ -359,10 +361,10 @@ class EMG_FAQ_Plugin
         ?>
         <script>
             (function () {
-            var cb = document.getElementById('emg-faq-auto-schema-enabled');
+                var cb = document.getElementById('emg-faq-auto-schema-enabled');
                 var wrap = document.getElementById('emg-faq-schema-field-wrap');
                 if (!cb || !wrap) return;
-            function sync() { wrap.style.display = cb.checked ? 'none' : 'block'; }
+                function sync() { wrap.style.display = cb.checked ? 'none' : 'block'; }
                 cb.addEventListener('change', sync);
                 sync();
             })();
@@ -379,6 +381,7 @@ class EMG_FAQ_Plugin
         $default_schema = (string) get_option(self::OPT_DEFAULT_SCHEMA, '');
         $display_mode = (string) get_option(self::OPT_DISPLAY_MODE, 'accordion');
         $auto_schema = (string) get_option(self::OPT_MANUAL_SCHEMA, '1');
+        $schema_output_enabled = (string) get_option(self::OPT_DISABLE_SCHEMA, '1');
         $question_font_size = (string) get_option(self::OPT_Q_FONT_SIZE, '16');
         $question_color = (string) get_option(self::OPT_Q_COLOR, '#111827');
         $answer_font_size = (string) get_option(self::OPT_A_FONT_SIZE, '16');
@@ -386,41 +389,50 @@ class EMG_FAQ_Plugin
         ?>
         <div class="wrap">
             <h1>EMG FAQ</h1>
-            <p>Use this page to control your FAQ shortcode output.</p>
-            <p>FAQ format: one line per item, like <code>Question || Answer</code>.</p>
-
 
             <h2 style="margin-top:20px;">Shortcode Examples</h2>
-            <p><strong>1) Use saved FAQ list:</strong><br><code>[emg_faq city="Dallas" class="faq-box"]</code></p>
-            <p><strong>2) Full city replacement example (FAQ + schema):</strong><br>
-                In <strong>FAQ List</strong>, add this line:<br>
-                <code>What is portable storage in {{city}}? || Portable storage in {{city}} is a container service.</code><br>
-                Then use shortcode:<br>
-                <code>[emg_faq city="Dallas"]</code><br>
-                Frontend FAQ output becomes:<br>
-                <code>What is portable storage in Dallas?</code><br>
-                <code>Portable storage in Dallas is a container service.</code><br>
-                Schema output will also use <code>Dallas</code> in the same places.
-            </p>
-            <p><strong>3) Mode example (Plain vs Accordion):</strong><br>
-                Plain mode shortcode: <code>[emg_faq city="Dallas" mode="plain"]</code><br>
-                Accordion mode shortcode: <code>[emg_faq city="Dallas" mode="accordion"]</code><br>
+            <p><h3>1) FAQ list:</h3><code>[emg_faq class="faq-box"]</code>
+            <div><h3>2) FAQ list with city replacement:</h3>
+                <p>In <strong>FAQ List</strong>, add this line:
+                <code>What is portable storage in {{city}}? || Portable storage in {{city}} is a container service.</code></p>
+                <p>Then use shortcode:</p>
+                <code>[emg_faq city="Dallas"]</code>
+                <p>Frontend FAQ output becomes:</p>
+                <p><code>What is portable storage in Dallas?</code></p>
+                <p><code>Portable storage in Dallas is a container service.</code></p>
+                <p>Schema output will also use <code>Dallas</code> in the same places.</p>
+            </div>
+            <div><h3>3) Mode example (Plain vs Accordion):</h3>
+                <p>Plain mode shortcode: <code>[emg_faq city="Dallas" mode="plain"]</code></p>
+                <p>Accordion mode shortcode: <code>[emg_faq city="Dallas" mode="accordion"]</code></p>
                 If <code>mode</code> is not set in shortcode, plugin uses the global <strong>FAQ View Style</strong> selected
                 below.
-            </p>
-            <p><strong>4) Custom content inside shortcode (overrides FAQ list):</strong><br>
-                <code>[emg_faq city="Dallas" mode="plain"]&lt;h3&gt;Question&lt;/h3&gt;&lt;p&gt;Answer&lt;/p&gt;[/emg_faq]</code>
-            </p>
+            </div>
+            <div><h3>4) Custom content inside shortcode (overrides FAQ list):</h3>
+                <p>Selector-based example (recommended for question/answer parsing + schema):<br>
+                <code>[emg_faq city="Dallas" question_selector=".faq-q" answer_selector=".faq-a" generate_schema="yes"]&lt;h2 class="faq-q"&gt;What is portable storage in {{city}}?&lt;/h2&gt;&lt;p class="faq-a"&gt;Portable storage in {{city}} helps you move at your own pace.&lt;/p&gt;[/emg_faq]</code></p>
+
+                <p>Result: only this custom content is shown; global FAQ list is ignored for this block. City placeholders are replaced (e.g. <code>{{city}}</code> → <code>Dallas</code>).</p>
+            </div>
 
 
             <form method="post" action="options.php">
                 <?php settings_fields('emg_faq_settings'); ?>
                 <?php settings_errors('emg_faq_settings'); ?>
                 <h2>FAQ List</h2>
+                <p>FAQ format: one line per item, like <code>Question || Answer</code>.</p>
                 <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>" rows="16"
                     style="width:100%;"><?php echo esc_textarea($default_faq); ?></textarea>
 
                 <h2 style="margin-top:24px;">Schema Settings</h2>
+                <p>
+                    <label>
+                        <input type="hidden" name="<?php echo esc_attr(self::OPT_DISABLE_SCHEMA); ?>" value="0" />
+                        <input type="checkbox"
+                            name="<?php echo esc_attr(self::OPT_DISABLE_SCHEMA); ?>" value="1" <?php checked($schema_output_enabled, '1'); ?> />
+                        Show schema output (JSON-LD)
+                    </label>
+                </p>
                 <p>
                     <label>
                         <input type="hidden" name="<?php echo esc_attr(self::OPT_MANUAL_SCHEMA); ?>" value="0" />
@@ -447,7 +459,7 @@ class EMG_FAQ_Plugin
                     <option value="plain" <?php selected($display_mode, 'plain'); ?>>Plain (Question and Answer)</option>
                 </select>
 
-                <h2 style="margin-top:24px;">FAQ Text Style (Plain + Accordion)</h2>
+                <h2 style="margin-top:24px;">FAQ Text Style</h2>
                 <p>
                     <label>
                         Question font size (px):
@@ -496,6 +508,7 @@ class EMG_FAQ_Plugin
         if (!is_admin()) {
             $this->ensure_faq_assets_enqueued();
         }
+        $schema_output_enabled = get_option(self::OPT_DISABLE_SCHEMA, '1') === '1';
 
         $atts = shortcode_atts(
             array(
@@ -503,6 +516,11 @@ class EMG_FAQ_Plugin
                 'city' => '',
                 'class' => '',
                 'mode' => '',
+                'question' => 'h3',
+                'answer' => 'p',
+                'question_selector' => '',
+                'answer_selector' => '',
+                'generate_schema' => '',
             ),
             $atts,
             'emg_faq'
@@ -511,6 +529,11 @@ class EMG_FAQ_Plugin
         $global_display_mode = (string) get_option(self::OPT_DISPLAY_MODE, 'accordion');
         $display_mode = $atts['mode'] !== '' ? (string) $atts['mode'] : $global_display_mode;
         $city_name = !empty($atts['city']) ? sanitize_text_field((string) $atts['city']) : '';
+        $has_selector_pair = !empty($atts['question_selector']) && !empty($atts['answer_selector']);
+        if ($atts['mode'] === '' && $has_selector_pair) {
+            // For selector-based enclosing content, default to plain when mode is omitted.
+            $display_mode = 'plain';
+        }
 
         $inner = $content !== null ? trim((string) $content) : '';
 
@@ -526,58 +549,63 @@ class EMG_FAQ_Plugin
             if ($city_name !== '') {
                 $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
             }
-            $schema_final = $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on);
+            $schema_final = $schema_output_enabled ? $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on) : '';
             return $this->render_faq_block($atts['title'], $items, $schema_final, $display_mode, $atts['class']);
         }
 
         $inner_after_shortcodes = do_shortcode($inner);
-        $inner_safe = wp_kses_post($inner_after_shortcodes);
-        $items = $this->parse_faq_inner_content($inner_safe);
-
-        $auto_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '1') === '1';
-        $schema_raw = $this->normalize_schema_json((string) get_option(self::OPT_DEFAULT_SCHEMA, ''));
-        if ($city_name !== '') {
-            $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
-        }
-
-        if (!empty($items)) {
-            if ($city_name !== '') {
-                foreach ($items as $i => $row) {
-                    $items[$i]['q'] = $this->replace_city_placeholder($row['q'], $city_name);
-                    $items[$i]['a'] = $this->replace_city_placeholder($row['a'], $city_name);
-                }
-                $atts['title'] = $this->replace_city_placeholder($atts['title'], $city_name);
-            }
-            $schema_final = $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on);
-            return $this->render_faq_block($atts['title'], $items, $schema_final, $display_mode, $atts['class']);
-        }
-
         $body = $this->replace_city_placeholder($inner_after_shortcodes, $city_name);
-        $body = wp_kses_post($body);
-        if (!preg_match('/<(p|div|h[1-6]|ul|ol|li|blockquote|table|figure)\b/i', $body)) {
-            $body = wpautop($body);
+        $body = trim((string) wp_kses_post($body));
+        if (function_exists('shortcode_unautop')) {
+            $body = shortcode_unautop($body);
         }
+        $body = $this->remove_empty_paragraphs($body);
         if ($city_name !== '') {
             $atts['title'] = $this->replace_city_placeholder($atts['title'], $city_name);
         }
-        $schema_final = $this->resolve_schema_for_freeform($schema_raw, $auto_schema_on);
+
+        // For enclosing shortcode content:
+        // - default: print exactly what user writes
+        // - accordion mode: if question/answer tags are provided and parseable, render as accordion items
+        // - schema: OFF by default unless generate_schema is explicitly enabled
+        $schema_final = '';
+        $items_from_tags = array();
+        if (!empty($atts['question_selector']) && !empty($atts['answer_selector'])) {
+            $items_from_tags = $this->parse_faq_inner_content_by_selectors($body, $atts['question_selector'], $atts['answer_selector']);
+        }
+        if (empty($items_from_tags)) {
+            $items_from_tags = $this->parse_faq_inner_content_by_tags($body, $atts['question'], $atts['answer']);
+        }
+
+        if (!empty($items_from_tags) && $city_name !== '') {
+            foreach ($items_from_tags as $i => $row) {
+                $items_from_tags[$i]['q'] = $this->replace_city_placeholder($row['q'], $city_name);
+                $items_from_tags[$i]['a'] = $this->replace_city_placeholder($row['a'], $city_name);
+            }
+        }
+
+        $wants_inner_schema = in_array(
+            strtolower(trim((string) $atts['generate_schema'])),
+            array('1', 'yes', 'true', 'on'),
+            true
+        );
+
+        if ($schema_output_enabled && $wants_inner_schema) {
+            $auto_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '1') === '1';
+            $schema_raw = $this->normalize_schema_json((string) get_option(self::OPT_DEFAULT_SCHEMA, ''));
+            if ($city_name !== '') {
+                $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
+            }
+
+            $schema_final = $this->resolve_schema_for_output($items_from_tags, $schema_raw, $auto_schema_on);
+        }
+
+        // Enclosing + accordion mode can render parsed items from custom question/answer tags.
+        if ($display_mode === 'accordion' && !empty($items_from_tags)) {
+            return $this->render_faq_block($atts['title'], $items_from_tags, $schema_final, $display_mode, $atts['class']);
+        }
 
         return $this->render_faq_freeform($atts['title'], $body, $schema_final, $atts['class']);
-    }
-
-    /**
-     * Freeform inner content: no FAQ pairs → no auto FAQPage; optional manual JSON-LD only.
-     */
-    private function resolve_schema_for_freeform($schema_raw, $auto_schema_on)
-    {
-        if ($auto_schema_on) {
-            return '';
-        }
-        $schema_raw = trim((string) $schema_raw);
-        if ($schema_raw !== '' && $this->is_valid_json($schema_raw)) {
-            return $schema_raw;
-        }
-        return '';
     }
 
     private function render_faq_freeform($title, $body_html, $schema_raw, $extra_class = '')
@@ -587,6 +615,7 @@ class EMG_FAQ_Plugin
         if ($extra_class !== '') {
             $wrapper_class .= ' ' . implode(' ', array_map('sanitize_html_class', preg_split('/\s+/', $extra_class)));
         }
+        $body_html = $this->remove_empty_paragraphs((string) $body_html);
 
         ob_start();
         ?>
@@ -653,32 +682,146 @@ class EMG_FAQ_Plugin
     }
 
     /**
-     * Parse [emg_faq]...[/emg_faq] inner HTML: <h3>Question</h3> followed by block until next <h3>.
+     * Strip &lt;p&gt; blocks that are empty or whitespace/NBSP-only (common after wpautop around shortcodes).
      */
-    private function parse_faq_inner_content($html)
+    private function remove_empty_paragraphs($html)
+    {
+        $html = (string) $html;
+        if ($html === '') {
+            return '';
+        }
+        $cleaned = preg_replace_callback(
+            '/<p\b[^>]*>(.*?)<\/p>/is',
+            function ($m) {
+                $inner = (string) $m[1];
+                if (preg_match('/<[a-z][^>]*>/i', $inner)) {
+                    return $m[0];
+                }
+                $inner = html_entity_decode($inner, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $inner = preg_replace('/<br\s*\/?>/i', '', $inner);
+                $inner = preg_replace('/[\x{00A0}\x{200B}\x{FEFF}]/u', '', $inner);
+                $inner = trim(wp_strip_all_tags($inner, true));
+                return $inner === '' ? '' : $m[0];
+            },
+            $html
+        );
+
+        return trim((string) $cleaned);
+    }
+
+    private function parse_faq_inner_content_by_tags($html, $question_tag = 'h3', $answer_tag = 'p')
     {
         $html = trim((string) $html);
         if ($html === '') {
             return array();
         }
 
+        $qtag = strtolower(trim((string) $question_tag));
+        $atag = strtolower(trim((string) $answer_tag));
+        if (!preg_match('/^h[1-6]$/', $qtag)) {
+            $qtag = 'h3';
+        }
+        if (!preg_match('/^(p|div|li|span|blockquote)$/', $atag)) {
+            $atag = 'p';
+        }
+
         $items = array();
-        if (preg_match_all('/<h3\b[^>]*>(.*?)<\/h3>\s*(.*?)(?=<h3\b|\z)/is', $html, $matches, PREG_SET_ORDER)) {
+        $pattern = '/<' . preg_quote($qtag, '/') . '\b[^>]*>(.*?)<\/' . preg_quote($qtag, '/') . '>\s*(.*?)(?=<' . preg_quote($qtag, '/') . '\b|\z)/is';
+        if (preg_match_all($pattern, $html, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $m) {
                 $q = trim(wp_strip_all_tags($m[1]));
-                $a_block = trim($m[2]);
-                if ($q === '' || $a_block === '') {
+                if ($q === '') {
                     continue;
                 }
-                $items[] = array(
-                    'q' => $q,
-                    'a' => $a_block,
-                    'answer_is_html' => true,
-                );
+
+                $a_block = trim((string) $m[2]);
+                $a = '';
+                if (preg_match('/<' . preg_quote($atag, '/') . '\b[^>]*>(.*?)<\/' . preg_quote($atag, '/') . '>/is', $a_block, $am)) {
+                    $a = trim(wp_strip_all_tags($am[1]));
+                } else {
+                    $a = trim(wp_strip_all_tags($a_block));
+                }
+
+                if ($a === '') {
+                    continue;
+                }
+                $items[] = array('q' => $q, 'a' => $a);
             }
         }
 
         return $items;
+    }
+
+    private function parse_faq_inner_content_by_selectors($html, $question_selector, $answer_selector)
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return array();
+        }
+
+        $q = trim((string) $question_selector);
+        $a = trim((string) $answer_selector);
+        if ($q === '' || $a === '') {
+            return array();
+        }
+
+        $qPattern = $this->selector_to_regex($q);
+        $aPattern = $this->selector_to_regex($a);
+        if ($qPattern === '' || $aPattern === '') {
+            return array();
+        }
+
+        $items = array();
+        $pattern = '/<([a-z0-9]+)\b[^>]*' . $qPattern . '[^>]*>(.*?)<\/\1>\s*(.*?)(?=<[a-z0-9]+\b[^>]*' . $qPattern . '[^>]*>|\z)/is';
+        if (preg_match_all($pattern, $html, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $question = trim(wp_strip_all_tags($m[2]));
+                if ($question === '') {
+                    continue;
+                }
+                $block = (string) $m[3];
+                $answer = '';
+                if (preg_match('/<([a-z0-9]+)\b[^>]*' . $aPattern . '[^>]*>(.*?)<\/\1>/is', $block, $am)) {
+                    $answer = trim(wp_strip_all_tags($am[2]));
+                } else {
+                    $answer = trim(wp_strip_all_tags($block));
+                }
+                if ($answer === '') {
+                    continue;
+                }
+                $items[] = array('q' => $question, 'a' => $answer);
+            }
+        }
+
+        return $items;
+    }
+
+    private function selector_to_regex($selector)
+    {
+        $selector = trim((string) $selector);
+        if ($selector === '') {
+            return '';
+        }
+
+        // class selector: .faq-q
+        if (strpos($selector, '.') === 0) {
+            $name = preg_replace('/[^a-zA-Z0-9_-]/', '', substr($selector, 1));
+            if ($name === '') {
+                return '';
+            }
+            return 'class=["\'][^"\']*\b' . preg_quote($name, '/') . '\b[^"\']*["\']';
+        }
+
+        // id selector: #faq-q
+        if (strpos($selector, '#') === 0) {
+            $name = preg_replace('/[^a-zA-Z0-9_-]/', '', substr($selector, 1));
+            if ($name === '') {
+                return '';
+            }
+            return 'id=["\']' . preg_quote($name, '/') . '["\']';
+        }
+
+        return '';
     }
 
     private function replace_city_placeholder($text, $city)
