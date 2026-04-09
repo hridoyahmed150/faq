@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 1.2.1
+ * Version: 1.2.2
  * Author: Hridoy Ahmed
  */
 
@@ -104,7 +104,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.1');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.2');
         wp_enqueue_style(self::STYLE_HANDLE);
         wp_add_inline_style(self::STYLE_HANDLE, $this->get_frontend_css());
     }
@@ -467,21 +467,37 @@ class EMG_FAQ_Plugin
 
     public function register_settings()
     {
-        register_setting('emg_faq_settings', self::OPT_DEFAULT_FAQ, array('sanitize_callback' => array($this, 'sanitize_faq_items')));
-        register_setting('emg_faq_settings', self::OPT_WRAPPER_TEMPLATE, array('sanitize_callback' => array($this, 'sanitize_wrapper_template')));
-        register_setting('emg_faq_settings', self::OPT_DEFAULT_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_schema_text')));
-        register_setting('emg_faq_settings', self::OPT_DISPLAY_MODE, array('sanitize_callback' => array($this, 'sanitize_display_mode')));
-        register_setting('emg_faq_settings', self::OPT_ACCORDION_ICON_STYLE, array('sanitize_callback' => array($this, 'sanitize_icon_style')));
-        register_setting('emg_faq_settings', self::OPT_MANUAL_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
-        register_setting('emg_faq_settings', self::OPT_SCHEMA_OUTPUT_ENABLED, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
-        register_setting('emg_faq_settings', self::OPT_Q_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
-        register_setting('emg_faq_settings', self::OPT_Q_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
-        register_setting('emg_faq_settings', self::OPT_A_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
-        register_setting('emg_faq_settings', self::OPT_A_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
-        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_WIDTH, array('sanitize_callback' => array($this, 'sanitize_border_width')));
-        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_COLOR, array('sanitize_callback' => array($this, 'sanitize_border_color')));
-        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_RADIUS, array('sanitize_callback' => array($this, 'sanitize_border_radius')));
-        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_SIDES, array('sanitize_callback' => array($this, 'sanitize_border_sides')));
+        $this->register_emg_faq_setting(self::OPT_DEFAULT_FAQ, array($this, 'sanitize_faq_items'));
+        $this->register_emg_faq_setting(self::OPT_WRAPPER_TEMPLATE, array($this, 'sanitize_wrapper_template'));
+        $this->register_emg_faq_setting(self::OPT_DEFAULT_SCHEMA, array($this, 'sanitize_schema_text'));
+        $this->register_emg_faq_setting(self::OPT_DISPLAY_MODE, array($this, 'sanitize_display_mode'));
+        $this->register_emg_faq_setting(self::OPT_ACCORDION_ICON_STYLE, array($this, 'sanitize_icon_style'));
+        $this->register_emg_faq_setting(self::OPT_MANUAL_SCHEMA, array($this, 'sanitize_manual_schema_flag'));
+        $this->register_emg_faq_setting(self::OPT_SCHEMA_OUTPUT_ENABLED, array($this, 'sanitize_manual_schema_flag'));
+        $this->register_emg_faq_setting(self::OPT_Q_FONT_SIZE, array($this, 'sanitize_font_size'));
+        $this->register_emg_faq_setting(self::OPT_Q_COLOR, array($this, 'sanitize_color'));
+        $this->register_emg_faq_setting(self::OPT_A_FONT_SIZE, array($this, 'sanitize_font_size'));
+        $this->register_emg_faq_setting(self::OPT_A_COLOR, array($this, 'sanitize_color'));
+        $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_WIDTH, array($this, 'sanitize_border_width'));
+        $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_COLOR, array($this, 'sanitize_border_color'));
+        $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_RADIUS, array($this, 'sanitize_border_radius'));
+        $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_SIDES, array($this, 'sanitize_border_sides'));
+    }
+
+    /**
+     * @param string   $option
+     * @param callable $sanitize_callback
+     */
+    private function register_emg_faq_setting($option, $sanitize_callback)
+    {
+        register_setting(
+            'emg_faq_settings',
+            $option,
+            array(
+                'sanitize_callback' => $sanitize_callback,
+                'show_in_rest' => false,
+            )
+        );
     }
 
     public function sanitize_text($value)
@@ -850,7 +866,7 @@ class EMG_FAQ_Plugin
                     If custom JSON is empty or invalid, plugin falls back to auto schema.
                 </p>
 
-                <div id="emg-faq-schema-field-wrap" style="<?php echo $auto_schema === '1' ? 'display:none;' : ''; ?>">
+                <div id="emg-faq-schema-field-wrap" style="<?php echo esc_attr($auto_schema === '1' ? 'display:none;' : ''); ?>">
                     <h3>Custom Schema JSON (Optional)</h3>
                     <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_SCHEMA); ?>" rows="14"
                         style="width:100%;"><?php echo esc_textarea($default_schema); ?></textarea>
@@ -861,7 +877,7 @@ class EMG_FAQ_Plugin
                     <option value="accordion" <?php selected($display_mode, 'accordion'); ?>>Accordion</option>
                     <option value="plain" <?php selected($display_mode, 'plain'); ?>>Plain (Question and Answer)</option>
                 </select>
-                <div id="emg-faq-icon-style-wrap" style="<?php echo $display_mode === 'accordion' ? '' : 'display:none;'; ?> margin-top:12px;">
+                <div id="emg-faq-icon-style-wrap" style="<?php echo esc_attr(($display_mode === 'accordion' ? '' : 'display:none;') . ' margin-top:12px;'); ?>">
                     <label for="emg-faq-icon-style"><strong>Accordion icon style:</strong></label><br />
                     <select id="emg-faq-icon-style" name="<?php echo esc_attr(self::OPT_ACCORDION_ICON_STYLE); ?>">
                         <option value="plusminus" <?php selected($icon_style, 'plusminus'); ?>>Plus / Minus</option>
@@ -982,6 +998,8 @@ class EMG_FAQ_Plugin
             $atts,
             'emg_faq'
         );
+
+        $atts['title'] = sanitize_text_field((string) $atts['title']);
 
         $global_display_mode = (string) get_option(self::OPT_DISPLAY_MODE, 'accordion');
         $display_mode = $atts['mode'] !== '' ? (string) $atts['mode'] : $global_display_mode;
@@ -1143,7 +1161,18 @@ class EMG_FAQ_Plugin
             'mainEntity' => $main_entity,
         );
 
-        return wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return $this->faq_json_encode_for_ld($data);
+    }
+
+    /**
+     * JSON-LD inside a script tag: never pass only JSON_UNESCAPED_* to wp_json_encode — that skips
+     * JSON_HEX_* and allows breaking out of &lt;script type="application/ld+json"&gt; via &lt;/script&gt; in strings.
+     */
+    private function faq_json_encode_for_ld($data)
+    {
+        $flags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+
+        return wp_json_encode($data, $flags, 512);
     }
 
     private function flatten_html_text($value)
@@ -1388,8 +1417,7 @@ class EMG_FAQ_Plugin
     }
 
     /**
-     * Decode then re-encode with wp_json_encode so output is safe inside
-     * <script type="application/ld+json"> (WordPress adds JSON_HEX_* flags, avoiding </script> breakout).
+     * Decode then re-encode with hex-escaped &lt; &gt; &amp; quotes so strings cannot close the JSON-LD script tag.
      */
     private function ld_json_string_for_script($json_string)
     {
@@ -1402,7 +1430,7 @@ class EMG_FAQ_Plugin
             return '';
         }
 
-        return wp_json_encode($decoded, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return $this->faq_json_encode_for_ld($decoded);
     }
 
     private function parse_faq_lines($raw)
