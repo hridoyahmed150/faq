@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Hridoy Ahmed
  */
 
@@ -13,14 +13,26 @@ if (!defined('ABSPATH')) {
 class EMG_FAQ_Plugin
 {
     const OPT_DEFAULT_FAQ = 'emg_faq_default_faq_items';
+    const OPT_WRAPPER_TEMPLATE = 'emg_faq_wrapper_template';
     const OPT_DEFAULT_SCHEMA = 'emg_faq_default_schema_json';
     const OPT_DISPLAY_MODE = 'emg_faq_display_mode';
+    const OPT_ACCORDION_ICON_STYLE = 'emg_faq_accordion_icon_style';
     const OPT_MANUAL_SCHEMA = 'emg_faq_manual_schema_enabled';
-    const OPT_DISABLE_SCHEMA = 'emg_faq_disable_schema_output';
+    /** When saved as "1", JSON-LD schema output is on (label: "Show schema output"). */
+    const OPT_SCHEMA_OUTPUT_ENABLED = 'emg_faq_schema_output_enabled';
+    /** @internal Legacy option key (semantically confusing); migrated to OPT_SCHEMA_OUTPUT_ENABLED. */
+    const OPT_LEGACY_SCHEMA_OUTPUT_KEY = 'emg_faq_disable_schema_output';
+
+    /** Max bytes of inner shortcode HTML for tag/selector FAQ parsing (ReDoS / CPU guard). */
+    const FAQ_INNER_PARSE_MAX_BYTES = 524288;
     const OPT_Q_FONT_SIZE = 'emg_faq_question_font_size';
     const OPT_Q_COLOR = 'emg_faq_question_color';
     const OPT_A_FONT_SIZE = 'emg_faq_answer_font_size';
     const OPT_A_COLOR = 'emg_faq_answer_color';
+    const OPT_ITEM_BORDER_WIDTH = 'emg_faq_item_border_width';
+    const OPT_ITEM_BORDER_COLOR = 'emg_faq_item_border_color';
+    const OPT_ITEM_BORDER_RADIUS = 'emg_faq_item_border_radius';
+    const OPT_ITEM_BORDER_SIDES = 'emg_faq_item_border_sides';
 
     const STYLE_HANDLE = 'emg-faq-frontend';
 
@@ -32,6 +44,7 @@ class EMG_FAQ_Plugin
 
     public function __construct()
     {
+        add_action('init', array($this, 'maybe_migrate_schema_output_option'), 0);
         add_action('admin_menu', array($this, 'admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_footer', array($this, 'admin_footer_schema_toggle_script'));
@@ -40,6 +53,23 @@ class EMG_FAQ_Plugin
         add_action('wp_footer', array($this, 'output_queued_schema'), 1);
         add_shortcode('emg_faq', array($this, 'shortcode_emg_faq'));
         add_shortcode('emg-faq', array($this, 'shortcode_emg_faq'));
+    }
+
+    /**
+     * One-time copy from legacy option key (emg_faq_disable_schema_output) to emg_faq_schema_output_enabled.
+     */
+    public function maybe_migrate_schema_output_option()
+    {
+        if (get_option(self::OPT_SCHEMA_OUTPUT_ENABLED, false) !== false) {
+            return;
+        }
+        $legacy = get_option(self::OPT_LEGACY_SCHEMA_OUTPUT_KEY, false);
+        if ($legacy === false) {
+            return;
+        }
+        $on = ($legacy === '1' || $legacy === 1 || $legacy === true);
+        update_option(self::OPT_SCHEMA_OUTPUT_ENABLED, $on ? '1' : '0');
+        delete_option(self::OPT_LEGACY_SCHEMA_OUTPUT_KEY);
     }
 
     /**
@@ -74,13 +104,14 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.0');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.1');
         wp_enqueue_style(self::STYLE_HANDLE);
         wp_add_inline_style(self::STYLE_HANDLE, $this->get_frontend_css());
     }
 
     private function get_frontend_css()
     {
+        $icon_style = $this->sanitize_icon_style(get_option(self::OPT_ACCORDION_ICON_STYLE, 'plusminus'));
         $question_font_size = (int) get_option(self::OPT_Q_FONT_SIZE, 16);
         if ($question_font_size < 8 || $question_font_size > 72) {
             $question_font_size = 16;
@@ -97,75 +128,200 @@ class EMG_FAQ_Plugin
         if (empty($answer_color)) {
             $answer_color = '#374151';
         }
+        $border_width = (int) get_option(self::OPT_ITEM_BORDER_WIDTH, 1);
+        if ($border_width < 0 || $border_width > 20) {
+            $border_width = 1;
+        }
+        $border_radius = (int) get_option(self::OPT_ITEM_BORDER_RADIUS, 8);
+        if ($border_radius < 0 || $border_radius > 80) {
+            $border_radius = 8;
+        }
+        $border_color = sanitize_hex_color((string) get_option(self::OPT_ITEM_BORDER_COLOR, '#dddddd'));
+        if (empty($border_color)) {
+            $border_color = '#dddddd';
+        }
+        $border_sides = get_option(self::OPT_ITEM_BORDER_SIDES, array('top', 'right', 'bottom', 'left'));
+        if (!is_array($border_sides) || empty($border_sides)) {
+            $border_sides = array('top', 'right', 'bottom', 'left');
+        }
+        $has_top = in_array('top', $border_sides, true);
+        $has_right = in_array('right', $border_sides, true);
+        $has_bottom = in_array('bottom', $border_sides, true);
+        $has_left = in_array('left', $border_sides, true);
+        $border_top = $has_top ? $border_width . 'px solid ' . $border_color : '0';
+        $border_right = $has_right ? $border_width . 'px solid ' . $border_color : '0';
+        $border_bottom = $has_bottom ? $border_width . 'px solid ' . $border_color : '0';
+        $border_left = $has_left ? $border_width . 'px solid ' . $border_color : '0';
 
         return '
+
+
 .emg-faq-box {
-	margin: 28px 0;
-	padding: 20px;
-	background: #fff;
+	max-width: 100%;
+	width: 100%;
+	margin: 0 auto;
+	padding: 0;
+	background: transparent;
 }
+
 .emg-faq-box .emg-faq-title {
-	margin: 0 0 14px;
-	font-size: 28px;
+	margin: 0 0 20px;
+	font-size: 32px;
 	line-height: 1.2;
+	font-weight: 700;
 }
 .emg-faq-box .emg-faq-item {
-	border-top: 1px solid #edf1f5;
-	padding: 12px 0;
+	border-top: ' . $border_top . ';
+	border-right: ' . $border_right . ';
+	border-bottom: ' . $border_bottom . ';
+	border-left: ' . $border_left . ';
+	border-radius: ' . $border_radius . 'px;
+	margin-bottom: 10px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+	padding: 0;
 }
-.emg-faq-box .emg-faq-item:first-of-type {
-	border-top: 0;
-	padding-top: 0;
-}
+
 .emg-faq-box .emg-faq-question {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
 	width: 100%;
+	padding: 18px 56px 18px 20px;
+	cursor: pointer;
+	min-height: 52px;
+	-webkit-tap-highlight-color: transparent;
 	background: transparent;
 	border: 0;
-	padding: 0 24px 0 0;
 	text-align: left;
-	cursor: pointer;
-	font-weight: 700;
 	position: relative;
-	font-size: ' . $question_font_size . 'px;
-	color: ' . $question_color . ';
-}
-.emg-faq-box .emg-faq-question-text {
-	font-size: ' . $question_font_size . 'px;
-	color: ' . $question_color . ';
 	font-weight: 700;
+	font-size: ' . $question_font_size . 'px;
+	line-height: 145%;
+	color: ' . $question_color . ';
 }
+
+.emg-faq-box .emg-faq-question:hover {
+	background: #fafafa;
+}
+
+
+.emg-faq-box .emg-faq-question-text {
+	flex: 1;
+	font-weight: 700;
+	font-size: ' . $question_font_size . 'px;
+	line-height: 145%;
+	color: ' . $question_color . ';
+}
+
+.emg-faq-box .emg-faq-question::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 28px;
+	transform: translate(50%, -50%);
+	transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.emg-faq-box .emg-faq-question::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 28px;
+	transition: opacity 200ms ease, transform 200ms ease, color 200ms ease;
+}
+' . ($icon_style === 'arrow' ? '
+.emg-faq-box .emg-faq-question::before {
+	width: 28px;
+	height: 28px;
+	border: 2px solid #000;
+	border-radius: 50%;
+	background: #fff;
+}
+
+.emg-faq-box .emg-faq-question::after {
+	width: 9px;
+	height: 9px;
+	border-right: 2px solid #000;
+	border-bottom: 2px solid #000;
+	transform: translate(40%, -60%) rotate(45deg);
+}
+
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::before {
+	background: #000;
+}
+
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::after {
+	border-right-color: #fff;
+	border-bottom-color: #fff;
+	transform: translate(40%, -40%) rotate(-135deg);
+}
+' : '
+.emg-faq-box .emg-faq-question::before {
+	width: 28px;
+	height: 28px;
+	border: 2px solid #000;
+	border-radius: 50%;
+	background: #fff;
+}
+
 .emg-faq-box .emg-faq-question::after {
 	content: "+";
-	position: absolute;
-	right: 0;
-	top: 50%;
-	transform: translateY(-50%);
-	font-size: 20px;
+	transform: translate(50%, -50%);
+	color: #000;
+	font-size: 18px;
 	line-height: 1;
-	transition: transform 0.25s ease, opacity 0.25s ease;
+	font-weight: 700;
 }
+
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::before {
+	background: #000;
+}
+
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::after {
 	content: "−";
-	transform: translateY(-50%) scale(1.05);
+	opacity: 1;
+	transform: translate(50%, -52%);
+	color: #fff;
 }
+') . '
+
 .emg-faq-box .emg-faq-answer {
-	margin-top: 8px;
-	line-height: 1.6;
-	font-size: ' . $answer_font_size . 'px;
 	color: ' . $answer_color . ';
+	line-height: 170%;
+	font-size: ' . $answer_font_size . 'px;
+	padding: 0 20px;
+	margin-top: 0;
 }
+
+.emg-faq-box .emg-faq-answer p:first-child {
+	margin-top: 0;
+}
+
+.emg-faq-box .emg-faq-answer p:last-child {
+	margin-bottom: 0;
+}
+
+.emg-faq-box .emg-faq-answer ul {
+	margin: 10px 0 0;
+	padding-left: 20px;
+}
+
 .emg-faq-box .emg-faq-panel {
 	overflow: hidden;
 	max-height: 0;
 	opacity: 0;
-	transform: translateY(-4px);
-	transition: max-height 0.28s ease, opacity 0.22s ease, transform 0.22s ease;
-	will-change: max-height, opacity, transform;
+	transition: max-height 0.3s ease, opacity 0.2s ease;
+	will-change: max-height, opacity;
 }
+
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-panel {
 	opacity: 1;
-	transform: translateY(0);
 }
+
+
 .emg-faq-box.emg-faq-freeform .emg-faq-freeform-body {
 	line-height: 1.6;
 }
@@ -190,11 +346,41 @@ class EMG_FAQ_Plugin
         ?>
         <script id="emg-faq-accordion">
             (function () {
+                function clearPanelTimer(panel) {
+                    if (!panel) return;
+                    if (panel._emgTimer) {
+                        window.clearTimeout(panel._emgTimer);
+                        panel._emgTimer = null;
+                    }
+                }
+
+                function onPanelTransitionEnd(panel, cb) {
+                    if (!panel) return;
+                    var done = false;
+                    var finish = function () {
+                        if (done) return;
+                        done = true;
+                        panel.removeEventListener('transitionend', handle);
+                        cb();
+                    };
+                    var handle = function (ev) {
+                        if (ev.target !== panel || ev.propertyName !== 'max-height') return;
+                        finish();
+                    };
+                    panel.addEventListener('transitionend', handle);
+                    panel._emgTimer = window.setTimeout(finish, 420);
+                }
+
                 function animateFaqToggle(itemEl, forceOpen) {
                     var panel = itemEl.querySelector('.emg-faq-panel');
                     var trigger = itemEl.querySelector('.emg-faq-question');
                     if (!panel) return;
+                    if (itemEl.dataset.animating === '1') return;
+
                     var willOpen = typeof forceOpen === 'boolean' ? forceOpen : !itemEl.classList.contains('is-open');
+                    itemEl.dataset.animating = '1';
+                    clearPanelTimer(panel);
+
                     if (willOpen) {
                         itemEl.classList.add('is-open');
                         if (trigger) {
@@ -203,28 +389,38 @@ class EMG_FAQ_Plugin
                         panel.hidden = false;
                         panel.style.maxHeight = '0px';
                         panel.style.opacity = '0';
-                        panel.style.transform = 'translateY(-4px)';
                         window.requestAnimationFrame(function () {
-                            panel.style.maxHeight = panel.scrollHeight + 'px';
-                            panel.style.opacity = '1';
-                            panel.style.transform = 'translateY(0)';
+                            window.requestAnimationFrame(function () {
+                                panel.style.maxHeight = panel.scrollHeight + 'px';
+                                panel.style.opacity = '1';
+                                onPanelTransitionEnd(panel, function () {
+                                    clearPanelTimer(panel);
+                                    if (itemEl.classList.contains('is-open')) {
+                                        // Keep explicit height to avoid close jank from none->0 transition.
+                                        panel.style.maxHeight = panel.scrollHeight + 'px';
+                                    }
+                                    itemEl.dataset.animating = '0';
+                                });
+                            });
                         });
                     } else {
-                        panel.style.maxHeight = panel.scrollHeight + 'px';
+                        if (panel.style.maxHeight === 'none' || panel.style.maxHeight === '') {
+                            panel.style.maxHeight = panel.scrollHeight + 'px';
+                        }
                         panel.style.opacity = '1';
-                        panel.style.transform = 'translateY(0)';
                         window.requestAnimationFrame(function () {
                             panel.style.maxHeight = '0px';
                             panel.style.opacity = '0';
-                            panel.style.transform = 'translateY(-4px)';
                         });
-                        window.setTimeout(function () {
+                        onPanelTransitionEnd(panel, function () {
+                            clearPanelTimer(panel);
                             itemEl.classList.remove('is-open');
                             if (trigger) {
                                 trigger.setAttribute('aria-expanded', 'false');
                             }
                             panel.hidden = true;
-                        }, 280);
+                            itemEl.dataset.animating = '0';
+                        });
                     }
                 }
                 document.querySelectorAll('.emg-faq-box').forEach(function (scope) {
@@ -271,20 +467,65 @@ class EMG_FAQ_Plugin
 
     public function register_settings()
     {
-        register_setting('emg_faq_settings', self::OPT_DEFAULT_FAQ, array('sanitize_callback' => array($this, 'sanitize_text')));
+        register_setting('emg_faq_settings', self::OPT_DEFAULT_FAQ, array('sanitize_callback' => array($this, 'sanitize_faq_items')));
+        register_setting('emg_faq_settings', self::OPT_WRAPPER_TEMPLATE, array('sanitize_callback' => array($this, 'sanitize_wrapper_template')));
         register_setting('emg_faq_settings', self::OPT_DEFAULT_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_schema_text')));
         register_setting('emg_faq_settings', self::OPT_DISPLAY_MODE, array('sanitize_callback' => array($this, 'sanitize_display_mode')));
+        register_setting('emg_faq_settings', self::OPT_ACCORDION_ICON_STYLE, array('sanitize_callback' => array($this, 'sanitize_icon_style')));
         register_setting('emg_faq_settings', self::OPT_MANUAL_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
-        register_setting('emg_faq_settings', self::OPT_DISABLE_SCHEMA, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
+        register_setting('emg_faq_settings', self::OPT_SCHEMA_OUTPUT_ENABLED, array('sanitize_callback' => array($this, 'sanitize_manual_schema_flag')));
         register_setting('emg_faq_settings', self::OPT_Q_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
         register_setting('emg_faq_settings', self::OPT_Q_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
         register_setting('emg_faq_settings', self::OPT_A_FONT_SIZE, array('sanitize_callback' => array($this, 'sanitize_font_size')));
         register_setting('emg_faq_settings', self::OPT_A_COLOR, array('sanitize_callback' => array($this, 'sanitize_color')));
+        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_WIDTH, array('sanitize_callback' => array($this, 'sanitize_border_width')));
+        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_COLOR, array('sanitize_callback' => array($this, 'sanitize_border_color')));
+        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_RADIUS, array('sanitize_callback' => array($this, 'sanitize_border_radius')));
+        register_setting('emg_faq_settings', self::OPT_ITEM_BORDER_SIDES, array('sanitize_callback' => array($this, 'sanitize_border_sides')));
     }
 
     public function sanitize_text($value)
     {
         return is_string($value) ? trim($value) : '';
+    }
+
+    public function sanitize_faq_items($value)
+    {
+        if (!is_array($value)) {
+            return array();
+        }
+
+        $out = array();
+        foreach ($value as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $q_raw = isset($row['question']) ? (string) $row['question'] : '';
+            $a_raw = isset($row['answer']) ? (string) $row['answer'] : '';
+            $q = trim(wp_kses_post($q_raw));
+            $a = trim(wp_kses_post($a_raw));
+            if ($q === '' || $a === '') {
+                continue;
+            }
+
+            $out[] = array(
+                'question' => $q,
+                'answer' => $a,
+            );
+        }
+
+        return $out;
+    }
+
+    public function sanitize_wrapper_template($value)
+    {
+        $value = is_string($value) ? trim($value) : '';
+        if ($value === '') {
+            return '';
+        }
+
+        return wp_kses_post($value);
     }
 
     public function sanitize_manual_schema_flag($value)
@@ -334,6 +575,12 @@ class EMG_FAQ_Plugin
         return in_array($value, array('plain', 'accordion'), true) ? $value : 'accordion';
     }
 
+    public function sanitize_icon_style($value)
+    {
+        $value = is_string($value) ? strtolower(trim($value)) : 'plusminus';
+        return in_array($value, array('plusminus', 'arrow'), true) ? $value : 'plusminus';
+    }
+
     public function sanitize_font_size($value)
     {
         $size = (int) $value;
@@ -352,6 +599,57 @@ class EMG_FAQ_Plugin
         return $color ? $color : '#111827';
     }
 
+    public function sanitize_border_width($value)
+    {
+        $size = (int) $value;
+        if ($size < 0) {
+            $size = 0;
+        }
+        if ($size > 20) {
+            $size = 20;
+        }
+        return (string) $size;
+    }
+
+    public function sanitize_border_radius($value)
+    {
+        $size = (int) $value;
+        if ($size < 0) {
+            $size = 0;
+        }
+        if ($size > 80) {
+            $size = 80;
+        }
+        return (string) $size;
+    }
+
+    public function sanitize_border_color($value)
+    {
+        $color = sanitize_hex_color((string) $value);
+        return $color ? $color : '#dddddd';
+    }
+
+    public function sanitize_border_sides($value)
+    {
+        $allowed = array('top', 'right', 'bottom', 'left');
+        if (!is_array($value)) {
+            return $allowed;
+        }
+
+        $sides = array();
+        foreach ($value as $side) {
+            $side = strtolower(trim((string) $side));
+            if (in_array($side, $allowed, true)) {
+                $sides[] = $side;
+            }
+        }
+        $sides = array_values(array_unique($sides));
+        if (empty($sides)) {
+            return $allowed;
+        }
+        return $sides;
+    }
+
     public function admin_footer_schema_toggle_script()
     {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
@@ -364,9 +662,52 @@ class EMG_FAQ_Plugin
                 var cb = document.getElementById('emg-faq-auto-schema-enabled');
                 var wrap = document.getElementById('emg-faq-schema-field-wrap');
                 if (!cb || !wrap) return;
-                function sync() { wrap.style.display = cb.checked ? 'none' : 'block'; }
-                cb.addEventListener('change', sync);
-                sync();
+                function syncSchema() { wrap.style.display = cb.checked ? 'none' : 'block'; }
+                cb.addEventListener('change', syncSchema);
+                syncSchema();
+
+                var modeSelect = document.getElementById('emg-faq-display-mode');
+                var iconWrap = document.getElementById('emg-faq-icon-style-wrap');
+                function syncIconStyleVisibility() {
+                    if (!modeSelect || !iconWrap) return;
+                    iconWrap.style.display = modeSelect.value === 'accordion' ? 'block' : 'none';
+                }
+                if (modeSelect && iconWrap) {
+                    modeSelect.addEventListener('change', syncIconStyleVisibility);
+                    syncIconStyleVisibility();
+                }
+
+                var list = document.getElementById('emg-faq-items-list');
+                var addBtn = document.getElementById('emg-faq-add-item');
+                var tpl = document.getElementById('emg-faq-item-template');
+                if (!list || !addBtn || !tpl) return;
+
+                var nextIndex = 0;
+                list.querySelectorAll('textarea[name]').forEach(function (el) {
+                    var m = el.name.match(/\[(\d+)\]\[(question|answer)\]$/);
+                    if (!m) return;
+                    var idx = parseInt(m[1], 10);
+                    if (!isNaN(idx) && idx >= nextIndex) {
+                        nextIndex = idx + 1;
+                    }
+                });
+
+                list.addEventListener('click', function (e) {
+                    var btn = e.target.closest('.emg-faq-remove-item');
+                    if (!btn) return;
+                    var row = btn.closest('.emg-faq-admin-item');
+                    if (row) row.remove();
+                });
+
+                addBtn.addEventListener('click', function () {
+                    var html = tpl.innerHTML.replace(/__INDEX__/g, String(nextIndex));
+                    nextIndex += 1;
+                    var wrapEl = document.createElement('div');
+                    wrapEl.innerHTML = html;
+                    while (wrapEl.firstChild) {
+                        list.appendChild(wrapEl.firstChild);
+                    }
+                });
             })();
         </script>
         <?php
@@ -377,15 +718,27 @@ class EMG_FAQ_Plugin
         if (!current_user_can('manage_options')) {
             return;
         }
-        $default_faq = (string) get_option(self::OPT_DEFAULT_FAQ, '');
+        $default_faq = get_option(self::OPT_DEFAULT_FAQ, array());
+        if (!is_array($default_faq)) {
+            $default_faq = array();
+        }
+        $wrapper_template = (string) get_option(self::OPT_WRAPPER_TEMPLATE, '');
         $default_schema = (string) get_option(self::OPT_DEFAULT_SCHEMA, '');
         $display_mode = (string) get_option(self::OPT_DISPLAY_MODE, 'accordion');
+        $icon_style = (string) get_option(self::OPT_ACCORDION_ICON_STYLE, 'plusminus');
         $auto_schema = (string) get_option(self::OPT_MANUAL_SCHEMA, '1');
-        $schema_output_enabled = (string) get_option(self::OPT_DISABLE_SCHEMA, '1');
+        $schema_output_enabled = (string) get_option(self::OPT_SCHEMA_OUTPUT_ENABLED, '1');
         $question_font_size = (string) get_option(self::OPT_Q_FONT_SIZE, '16');
         $question_color = (string) get_option(self::OPT_Q_COLOR, '#111827');
         $answer_font_size = (string) get_option(self::OPT_A_FONT_SIZE, '16');
         $answer_color = (string) get_option(self::OPT_A_COLOR, '#374151');
+        $item_border_width = (string) get_option(self::OPT_ITEM_BORDER_WIDTH, '1');
+        $item_border_color = (string) get_option(self::OPT_ITEM_BORDER_COLOR, '#dddddd');
+        $item_border_radius = (string) get_option(self::OPT_ITEM_BORDER_RADIUS, '8');
+        $item_border_sides = get_option(self::OPT_ITEM_BORDER_SIDES, array('top', 'right', 'bottom', 'left'));
+        if (!is_array($item_border_sides)) {
+            $item_border_sides = array('top', 'right', 'bottom', 'left');
+        }
         ?>
         <div class="wrap">
             <h1>EMG FAQ</h1>
@@ -393,8 +746,7 @@ class EMG_FAQ_Plugin
             <h2 style="margin-top:20px;">Shortcode Examples</h2>
             <p><h3>1) FAQ list:</h3><code>[emg_faq class="faq-box"]</code>
             <div><h3>2) FAQ list with city replacement:</h3>
-                <p>In <strong>FAQ List</strong>, add this line:
-                <code>What is portable storage in {{city}}? || Portable storage in {{city}} is a container service.</code></p>
+                <p>In <strong>FAQ Items</strong>, set question and answer with <code>{{city}}</code> placeholder.</p>
                 <p>Then use shortcode:</p>
                 <code>[emg_faq city="Dallas"]</code>
                 <p>Frontend FAQ output becomes:</p>
@@ -419,17 +771,67 @@ class EMG_FAQ_Plugin
             <form method="post" action="options.php">
                 <?php settings_fields('emg_faq_settings'); ?>
                 <?php settings_errors('emg_faq_settings'); ?>
-                <h2>FAQ List</h2>
-                <p>FAQ format: one line per item, like <code>Question || Answer</code>.</p>
-                <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>" rows="16"
-                    style="width:100%;"><?php echo esc_textarea($default_faq); ?></textarea>
+                <h2>FAQ Items</h2>
+                <p>Each FAQ has its own Question and Answer fields. HTML is allowed in both fields (like <code>h1-h6</code>, <code>p</code>, <code>ul</code>, <code>li</code>).</p>
+                <div id="emg-faq-items-list">
+                    <?php if (empty($default_faq)): ?>
+                        <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
+                            <p style="margin:0 0 8px;">
+                                <label><strong>Question</strong></label><br />
+                                <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[0][question]" rows="3" style="width:100%;"></textarea>
+                            </p>
+                            <p style="margin:0 0 8px;">
+                                <label><strong>Answer</strong></label><br />
+                                <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[0][answer]" rows="5" style="width:100%;"></textarea>
+                            </p>
+                            <button type="button" class="button emg-faq-remove-item">Remove</button>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($default_faq as $idx => $row): ?>
+                            <?php
+                            $q = isset($row['question']) ? (string) $row['question'] : '';
+                            $a = isset($row['answer']) ? (string) $row['answer'] : '';
+                            ?>
+                            <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
+                                <p style="margin:0 0 8px;">
+                                    <label><strong>Question</strong></label><br />
+                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[<?php echo esc_attr((string) $idx); ?>][question]" rows="3" style="width:100%;"><?php echo esc_textarea($q); ?></textarea>
+                                </p>
+                                <p style="margin:0 0 8px;">
+                                    <label><strong>Answer</strong></label><br />
+                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[<?php echo esc_attr((string) $idx); ?>][answer]" rows="5" style="width:100%;"><?php echo esc_textarea($a); ?></textarea>
+                                </p>
+                                <button type="button" class="button emg-faq-remove-item">Remove</button>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <p><button type="button" id="emg-faq-add-item" class="button button-secondary">+ Add FAQ</button></p>
+                <script type="text/template" id="emg-faq-item-template">
+                    <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
+                        <p style="margin:0 0 8px;">
+                            <label><strong>Question</strong></label><br />
+                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
+                        </p>
+                        <p style="margin:0 0 8px;">
+                            <label><strong>Answer</strong></label><br />
+                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
+                        </p>
+                        <button type="button" class="button emg-faq-remove-item">Remove</button>
+                    </div>
+                </script>
+
+                <h2 style="margin-top:24px;">FAQ Wrapper Template (Optional)</h2>
+                <p>Use <code>{{faq_items}}</code> where FAQ items should be injected.</p>
+                <textarea name="<?php echo esc_attr(self::OPT_WRAPPER_TEMPLATE); ?>" rows="8"
+                    style="width:100%;"><?php echo esc_textarea($wrapper_template); ?></textarea>
 
                 <h2 style="margin-top:24px;">Schema Settings</h2>
                 <p>
                     <label>
-                        <input type="hidden" name="<?php echo esc_attr(self::OPT_DISABLE_SCHEMA); ?>" value="0" />
+                        <input type="hidden" name="<?php echo esc_attr(self::OPT_SCHEMA_OUTPUT_ENABLED); ?>" value="0" />
                         <input type="checkbox"
-                            name="<?php echo esc_attr(self::OPT_DISABLE_SCHEMA); ?>" value="1" <?php checked($schema_output_enabled, '1'); ?> />
+                            name="<?php echo esc_attr(self::OPT_SCHEMA_OUTPUT_ENABLED); ?>" value="1" <?php checked($schema_output_enabled, '1'); ?> />
                         Show schema output (JSON-LD)
                     </label>
                 </p>
@@ -454,10 +856,17 @@ class EMG_FAQ_Plugin
                 </div>
 
                 <h2 style="margin-top:24px;">FAQ View Style</h2>
-                <select name="<?php echo esc_attr(self::OPT_DISPLAY_MODE); ?>">
+                <select id="emg-faq-display-mode" name="<?php echo esc_attr(self::OPT_DISPLAY_MODE); ?>">
                     <option value="accordion" <?php selected($display_mode, 'accordion'); ?>>Accordion</option>
                     <option value="plain" <?php selected($display_mode, 'plain'); ?>>Plain (Question and Answer)</option>
                 </select>
+                <div id="emg-faq-icon-style-wrap" style="<?php echo $display_mode === 'accordion' ? '' : 'display:none;'; ?> margin-top:12px;">
+                    <label for="emg-faq-icon-style"><strong>Accordion icon style:</strong></label><br />
+                    <select id="emg-faq-icon-style" name="<?php echo esc_attr(self::OPT_ACCORDION_ICON_STYLE); ?>">
+                        <option value="plusminus" <?php selected($icon_style, 'plusminus'); ?>>Plus / Minus</option>
+                        <option value="arrow" <?php selected($icon_style, 'arrow'); ?>>Arrow</option>
+                    </select>
+                </div>
 
                 <h2 style="margin-top:24px;">FAQ Text Style</h2>
                 <p>
@@ -492,6 +901,50 @@ class EMG_FAQ_Plugin
                             value="<?php echo esc_attr($answer_color); ?>" />
                     </label>
                 </p>
+                <h2 style="margin-top:24px;">FAQ Item Border Style</h2>
+                <p>
+                    <label>
+                        Border width (px):
+                        <input type="number" min="0" max="20" step="1"
+                            name="<?php echo esc_attr(self::OPT_ITEM_BORDER_WIDTH); ?>"
+                            value="<?php echo esc_attr($item_border_width); ?>" />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Border color:
+                        <input type="color"
+                            name="<?php echo esc_attr(self::OPT_ITEM_BORDER_COLOR); ?>"
+                            value="<?php echo esc_attr($item_border_color); ?>" />
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Border radius (px):
+                        <input type="number" min="0" max="80" step="1"
+                            name="<?php echo esc_attr(self::OPT_ITEM_BORDER_RADIUS); ?>"
+                            value="<?php echo esc_attr($item_border_radius); ?>" />
+                    </label>
+                </p>
+                <p>
+                    Border sides:
+                    <label style="margin-right:12px;">
+                        <input type="checkbox" name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="top" <?php checked(in_array('top', $item_border_sides, true)); ?> />
+                        Top
+                    </label>
+                    <label style="margin-right:12px;">
+                        <input type="checkbox" name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="right" <?php checked(in_array('right', $item_border_sides, true)); ?> />
+                        Right
+                    </label>
+                    <label style="margin-right:12px;">
+                        <input type="checkbox" name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="bottom" <?php checked(in_array('bottom', $item_border_sides, true)); ?> />
+                        Bottom
+                    </label>
+                    <label style="margin-right:12px;">
+                        <input type="checkbox" name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="left" <?php checked(in_array('left', $item_border_sides, true)); ?> />
+                        Left
+                    </label>
+                </p>
 
                 <?php submit_button('Save Settings'); ?>
             </form>
@@ -508,7 +961,7 @@ class EMG_FAQ_Plugin
         if (!is_admin()) {
             $this->ensure_faq_assets_enqueued();
         }
-        $schema_output_enabled = get_option(self::OPT_DISABLE_SCHEMA, '1') === '1';
+        $schema_output_enabled = get_option(self::OPT_SCHEMA_OUTPUT_ENABLED, '1') === '1';
 
         $atts = shortcode_atts(
             array(
@@ -538,12 +991,14 @@ class EMG_FAQ_Plugin
         $inner = $content !== null ? trim((string) $content) : '';
 
         if ($inner === '') {
-            $faq_raw = (string) get_option(self::OPT_DEFAULT_FAQ, '');
+            $items = $this->get_default_faq_items();
             if ($city_name !== '') {
-                $faq_raw = $this->replace_city_placeholder($faq_raw, $city_name);
                 $atts['title'] = $this->replace_city_placeholder($atts['title'], $city_name);
+                foreach ($items as $i => $row) {
+                    $items[$i]['q'] = $this->replace_city_placeholder($row['q'], $city_name);
+                    $items[$i]['a'] = $this->replace_city_placeholder($row['a'], $city_name);
+                }
             }
-            $items = $this->parse_faq_lines($faq_raw);
             $auto_schema_on = get_option(self::OPT_MANUAL_SCHEMA, '1') === '1';
             $schema_raw = $this->normalize_schema_json((string) get_option(self::OPT_DEFAULT_SCHEMA, ''));
             if ($city_name !== '') {
@@ -619,15 +1074,15 @@ class EMG_FAQ_Plugin
 
         ob_start();
         ?>
-        <section class="<?php echo esc_attr($wrapper_class); ?>">
+        <div class="<?php echo esc_attr($wrapper_class); ?>">
             <?php if ($title !== ''): ?>
                 <h2 class="emg-faq-title"><?php echo esc_html($title); ?></h2>
             <?php endif; ?>
             <div class="emg-faq-freeform-body"><?php echo $body_html; ?></div>
-        </section>
+        </div>
         <?php
         $this->queue_schema($schema_raw);
-        return ob_get_clean();
+        return $this->apply_wrapper_template(ob_get_clean());
     }
 
     /**
@@ -653,8 +1108,8 @@ class EMG_FAQ_Plugin
     {
         $main_entity = array();
         foreach ($items as $item) {
-            $q = isset($item['q']) ? wp_strip_all_tags((string) $item['q']) : '';
-            $a = isset($item['a']) ? wp_strip_all_tags((string) $item['a']) : '';
+            $q = isset($item['q']) ? $this->flatten_html_text((string) $item['q']) : '';
+            $a = isset($item['a']) ? $this->flatten_html_text((string) $item['a']) : '';
             if ($q === '' || $a === '') {
                 continue;
             }
@@ -679,6 +1134,22 @@ class EMG_FAQ_Plugin
         );
 
         return wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    private function flatten_html_text($value)
+    {
+        $value = (string) $value;
+        if ($value === '') {
+            return '';
+        }
+
+        // Keep visible separation when HTML blocks/lists are flattened.
+        $value = preg_replace('/<\/?(p|div|li|ul|ol|br|h[1-6])\b[^>]*>/i', ' ', $value);
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = wp_strip_all_tags($value, true);
+        $value = preg_replace('/\s+/u', ' ', (string) $value);
+
+        return trim((string) $value);
     }
 
     /**
@@ -713,6 +1184,9 @@ class EMG_FAQ_Plugin
     {
         $html = trim((string) $html);
         if ($html === '') {
+            return array();
+        }
+        if (strlen($html) > self::FAQ_INNER_PARSE_MAX_BYTES) {
             return array();
         }
 
@@ -756,6 +1230,9 @@ class EMG_FAQ_Plugin
     {
         $html = trim((string) $html);
         if ($html === '') {
+            return array();
+        }
+        if (strlen($html) > self::FAQ_INNER_PARSE_MAX_BYTES) {
             return array();
         }
 
@@ -847,6 +1324,24 @@ class EMG_FAQ_Plugin
         return json_last_error() === JSON_ERROR_NONE;
     }
 
+    /**
+     * Decode then re-encode with wp_json_encode so output is safe inside
+     * <script type="application/ld+json"> (WordPress adds JSON_HEX_* flags, avoiding </script> breakout).
+     */
+    private function ld_json_string_for_script($json_string)
+    {
+        $json_string = trim((string) $json_string);
+        if ($json_string === '') {
+            return '';
+        }
+        $decoded = json_decode($json_string, true, 512);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return '';
+        }
+
+        return wp_json_encode($decoded, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
     private function parse_faq_lines($raw)
     {
         $items = array();
@@ -872,6 +1367,58 @@ class EMG_FAQ_Plugin
         return $items;
     }
 
+    private function get_default_faq_items()
+    {
+        $raw = get_option(self::OPT_DEFAULT_FAQ, array());
+        $items = array();
+
+        if (is_array($raw)) {
+            foreach ($raw as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $q = isset($row['question']) ? trim(wp_kses_post((string) $row['question'])) : '';
+                $a = isset($row['answer']) ? trim(wp_kses_post((string) $row['answer'])) : '';
+                if ($q === '' || $a === '') {
+                    continue;
+                }
+                $items[] = array(
+                    'q' => $q,
+                    'a' => $a,
+                    'answer_is_html' => true,
+                    'question_is_html' => true,
+                );
+            }
+            return $items;
+        }
+
+        // Legacy fallback if stored value is still plain text list.
+        return $this->parse_faq_lines((string) $raw);
+    }
+
+    private function apply_wrapper_template($faq_html)
+    {
+        $faq_html = (string) $faq_html;
+        $template = trim((string) get_option(self::OPT_WRAPPER_TEMPLATE, ''));
+        if ($template !== '') {
+            $template = wp_kses_post($template);
+        }
+        if ($template === '') {
+            return $faq_html;
+        }
+
+        $tokenized = str_replace(
+            array('{{faq_items}}', '{{faq_content}}', '{{faq}}'),
+            $faq_html,
+            $template
+        );
+        if ($tokenized !== $template) {
+            return $tokenized;
+        }
+
+        return $template . $faq_html;
+    }
+
     private function render_faq_block($title, $items, $schema_raw, $display_mode = 'accordion', $extra_class = '')
     {
         if (empty($items)) {
@@ -888,13 +1435,13 @@ class EMG_FAQ_Plugin
 
         ob_start();
         ?>
-        <section class="<?php echo esc_attr($wrapper_class); ?>">
+        <div class="<?php echo esc_attr($wrapper_class); ?>">
             <?php if ($title !== ''): ?>
                 <h2 class="emg-faq-title"><?php echo esc_html($title); ?></h2>
             <?php endif; ?>
             <?php foreach ($items as $item): ?>
                 <?php
-                $q_esc = esc_html($item['q']);
+                $q_esc = !empty($item['question_is_html']) ? wp_kses_post($item['q']) : esc_html($item['q']);
                 $html_ans = !empty($item['answer_is_html']);
                 ?>
                 <?php if ($is_plain): ?>
@@ -915,7 +1462,7 @@ class EMG_FAQ_Plugin
                     </div>
                 <?php endif; ?>
             <?php endforeach; ?>
-        </section>
+        </div>
         <?php
         if (!$is_plain) {
             $this->request_accordion_script();
@@ -923,18 +1470,18 @@ class EMG_FAQ_Plugin
 
         $this->queue_schema($schema_raw);
 
-        return ob_get_clean();
+        return $this->apply_wrapper_template(ob_get_clean());
     }
 
     private function queue_schema($schema_raw)
     {
-        $schema_raw = trim((string) $schema_raw);
-        if ($schema_raw === '' || !$this->is_valid_json($schema_raw)) {
+        $safe = $this->ld_json_string_for_script($schema_raw);
+        if ($safe === '') {
             return;
         }
 
-        $key = md5($schema_raw);
-        $this->schema_queue[$key] = $schema_raw;
+        $key = md5($safe);
+        $this->schema_queue[$key] = $safe;
     }
 
     public function output_queued_schema()
@@ -943,8 +1490,8 @@ class EMG_FAQ_Plugin
             return;
         }
 
-        foreach ($this->schema_queue as $schema_raw) {
-            echo '<script type="application/ld+json">' . $schema_raw . '</script>' . "\n";
+        foreach ($this->schema_queue as $safe_ld_json) {
+            echo '<script type="application/ld+json">' . $safe_ld_json . '</script>' . "\n";
         }
     }
 }
