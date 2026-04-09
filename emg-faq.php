@@ -765,6 +765,7 @@ class EMG_FAQ_Plugin
                 <code>[emg_faq city="Dallas" question_selector=".faq-q" answer_selector=".faq-a" generate_schema="yes"]&lt;h2 class="faq-q"&gt;What is portable storage in {{city}}?&lt;/h2&gt;&lt;p class="faq-a"&gt;Portable storage in {{city}} helps you move at your own pace.&lt;/p&gt;[/emg_faq]</code></p>
 
                 <p>Result: only this custom content is shown; global FAQ list is ignored for this block. City placeholders are replaced (e.g. <code>{{city}}</code> → <code>Dallas</code>).</p>
+                <p>Optional (selector mode only): <code>strip_tags="true"</code> or bare <code>stripe</code> strips HTML from parsed Q/A (plain text display and schema). Default keeps safe HTML (<code>p</code>, <code>ul</code>, <code>li</code>, <code>strong</code>, etc.). Use <code>strip_tags="false"</code> when both attributes appear.</p>
             </div>
 
 
@@ -963,6 +964,7 @@ class EMG_FAQ_Plugin
         }
         $schema_output_enabled = get_option(self::OPT_SCHEMA_OUTPUT_ENABLED, '1') === '1';
 
+        $raw_atts = is_array($atts) ? $atts : array();
         $atts = shortcode_atts(
             array(
                 'title' => '',
@@ -974,6 +976,8 @@ class EMG_FAQ_Plugin
                 'question_selector' => '',
                 'answer_selector' => '',
                 'generate_schema' => '',
+                'strip_tags' => '',
+                'stripe' => '',
             ),
             $atts,
             'emg_faq'
@@ -1026,7 +1030,13 @@ class EMG_FAQ_Plugin
         $schema_final = '';
         $items_from_tags = array();
         if (!empty($atts['question_selector']) && !empty($atts['answer_selector'])) {
-            $items_from_tags = $this->parse_faq_inner_content_by_selectors($body, $atts['question_selector'], $atts['answer_selector']);
+            $selector_strip_plain = $this->enclosing_shortcode_wants_strip_tags($raw_atts);
+            $items_from_tags = $this->parse_faq_inner_content_by_selectors(
+                $body,
+                $atts['question_selector'],
+                $atts['answer_selector'],
+                $selector_strip_plain
+            );
         }
         if (empty($items_from_tags)) {
             $items_from_tags = $this->parse_faq_inner_content_by_tags($body, $atts['question'], $atts['answer']);
@@ -1226,7 +1236,49 @@ class EMG_FAQ_Plugin
         return $items;
     }
 
-    private function parse_faq_inner_content_by_selectors($html, $question_selector, $answer_selector)
+    /**
+     * Enclosing shortcode only: strip HTML from selector-parsed Q/A (plain text + esc_html output).
+     * Prefers {@see strip_tags}; {@see stripe} is a supported alias (also works as a bare flag).
+     */
+    private function enclosing_shortcode_wants_strip_tags(array $raw_atts)
+    {
+        if (array_key_exists('strip_tags', $raw_atts)) {
+            $v = $raw_atts['strip_tags'];
+            if ($v === '' || $v === null) {
+                return true;
+            }
+
+            return $this->shortcode_string_is_truthy($v);
+        }
+        if (array_key_exists('stripe', $raw_atts)) {
+            $v = $raw_atts['stripe'];
+            if ($v === '' || $v === null) {
+                return true;
+            }
+
+            return $this->shortcode_string_is_truthy($v);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private function shortcode_string_is_truthy($value)
+    {
+        $v = strtolower(trim((string) $value));
+        if (in_array($v, array('0', 'false', 'no', 'off'), true)) {
+            return false;
+        }
+        if (in_array($v, array('1', 'yes', 'true', 'on'), true)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function parse_faq_inner_content_by_selectors($html, $question_selector, $answer_selector, $strip_tags = false)
     {
         $html = trim((string) $html);
         if ($html === '') {
@@ -1252,21 +1304,32 @@ class EMG_FAQ_Plugin
         $pattern = '/<([a-z0-9]+)\b[^>]*' . $qPattern . '[^>]*>(.*?)<\/\1>\s*(.*?)(?=<[a-z0-9]+\b[^>]*' . $qPattern . '[^>]*>|\z)/is';
         if (preg_match_all($pattern, $html, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $m) {
-                $question = trim(wp_strip_all_tags($m[2]));
-                if ($question === '') {
+                $q_raw = (string) $m[2];
+                $question = $strip_tags ? trim(wp_strip_all_tags($q_raw)) : trim(wp_kses_post($q_raw));
+                if (trim(wp_strip_all_tags($question, true)) === '') {
                     continue;
                 }
                 $block = (string) $m[3];
                 $answer = '';
                 if (preg_match('/<([a-z0-9]+)\b[^>]*' . $aPattern . '[^>]*>(.*?)<\/\1>/is', $block, $am)) {
-                    $answer = trim(wp_strip_all_tags($am[2]));
+                    $a_raw = (string) $am[2];
+                    $answer = $strip_tags ? trim(wp_strip_all_tags($a_raw)) : trim(wp_kses_post($a_raw));
                 } else {
-                    $answer = trim(wp_strip_all_tags($block));
+                    $answer = $strip_tags ? trim(wp_strip_all_tags($block)) : trim(wp_kses_post($block));
                 }
-                if ($answer === '') {
+                if (trim(wp_strip_all_tags($answer, true)) === '') {
                     continue;
                 }
-                $items[] = array('q' => $question, 'a' => $answer);
+                if ($strip_tags) {
+                    $items[] = array('q' => $question, 'a' => $answer);
+                } else {
+                    $items[] = array(
+                        'q' => $question,
+                        'a' => $answer,
+                        'question_is_html' => true,
+                        'answer_is_html' => true,
+                    );
+                }
             }
         }
 
