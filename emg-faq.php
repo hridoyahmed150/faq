@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 1.2.2
+ * Version: 1.2.7
  * Author: Hridoy Ahmed
  */
 
@@ -104,7 +104,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.2');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.7');
         wp_enqueue_style(self::STYLE_HANDLE);
         wp_add_inline_style(self::STYLE_HANDLE, $this->get_frontend_css());
     }
@@ -782,6 +782,7 @@ class EMG_FAQ_Plugin
 
                 <p>Result: only this custom content is shown; global FAQ list is ignored for this block. City placeholders are replaced (e.g. <code>{{city}}</code> → <code>Dallas</code>).</p>
                 <p>Optional (selector mode only): <code>strip_tags="true"</code> or bare <code>stripe</code> strips HTML from parsed Q/A (plain text display and schema). Default keeps safe HTML (<code>p</code>, <code>ul</code>, <code>li</code>, <code>strong</code>, etc.). Use <code>strip_tags="false"</code> when both attributes appear.</p>
+                
             </div>
 
 
@@ -994,12 +995,14 @@ class EMG_FAQ_Plugin
                 'generate_schema' => '',
                 'strip_tags' => '',
                 'stripe' => '',
+                'list_separation' => '',
             ),
             $atts,
             'emg_faq'
         );
 
         $atts['title'] = sanitize_text_field((string) $atts['title']);
+        $list_separation_schema = $this->sanitize_list_separation_for_schema($atts['list_separation']);
 
         $global_display_mode = (string) get_option(self::OPT_DISPLAY_MODE, 'accordion');
         $display_mode = $atts['mode'] !== '' ? (string) $atts['mode'] : $global_display_mode;
@@ -1026,7 +1029,7 @@ class EMG_FAQ_Plugin
             if ($city_name !== '') {
                 $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
             }
-            $schema_final = $schema_output_enabled ? $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on) : '';
+            $schema_final = $schema_output_enabled ? $this->resolve_schema_for_output($items, $schema_raw, $auto_schema_on, $list_separation_schema) : '';
             return $this->render_faq_block($atts['title'], $items, $schema_final, $display_mode, $atts['class']);
         }
 
@@ -1080,7 +1083,7 @@ class EMG_FAQ_Plugin
                 $schema_raw = $this->replace_city_placeholder($schema_raw, $city_name);
             }
 
-            $schema_final = $this->resolve_schema_for_output($items_from_tags, $schema_raw, $auto_schema_on);
+            $schema_final = $this->resolve_schema_for_output($items_from_tags, $schema_raw, $auto_schema_on, $list_separation_schema);
         }
 
         // Enclosing + accordion mode can render parsed items from custom question/answer tags.
@@ -1116,7 +1119,7 @@ class EMG_FAQ_Plugin
     /**
      * Manual schema when enabled + valid; otherwise auto FAQPage from items.
      */
-    private function resolve_schema_for_output($items, $schema_raw, $auto_schema_on)
+    private function resolve_schema_for_output($items, $schema_raw, $auto_schema_on, $list_separation = 'space')
     {
         if (empty($items)) {
             return '';
@@ -1129,15 +1132,35 @@ class EMG_FAQ_Plugin
             }
         }
 
-        return $this->build_faqpage_schema_json($items);
+        return $this->build_faqpage_schema_json($items, $list_separation);
     }
 
-    private function build_faqpage_schema_json($items)
+    /**
+     * Shortcode list_separation → internal mode for schema flattening only (whitelist).
+     *
+     * @param mixed $value
+     * @return string 'space'|'comma'|'dot'
+     */
+    private function sanitize_list_separation_for_schema($value)
     {
+        $v = strtolower(trim((string) $value));
+        if ($v === 'comma' || $v === ',') {
+            return 'comma';
+        }
+        if ($v === 'dot' || $v === 'period' || $v === '.') {
+            return 'dot';
+        }
+
+        return 'space';
+    }
+
+    private function build_faqpage_schema_json($items, $list_separation = 'space')
+    {
+        $list_separation = $this->sanitize_list_separation_for_schema($list_separation);
         $main_entity = array();
         foreach ($items as $item) {
-            $q = isset($item['q']) ? $this->flatten_html_text((string) $item['q']) : '';
-            $a = isset($item['a']) ? $this->flatten_html_text((string) $item['a']) : '';
+            $q = isset($item['q']) ? $this->flatten_html_text((string) $item['q'], $list_separation) : '';
+            $a = isset($item['a']) ? $this->flatten_html_text((string) $item['a'], $list_separation) : '';
             if ($q === '' || $a === '') {
                 continue;
             }
@@ -1175,11 +1198,19 @@ class EMG_FAQ_Plugin
         return wp_json_encode($data, $flags, 512);
     }
 
-    private function flatten_html_text($value)
+    private function flatten_html_text($value, $list_separation = 'space')
     {
         $value = (string) $value;
         if ($value === '') {
             return '';
+        }
+
+        $list_mode = $this->sanitize_list_separation_for_schema($list_separation);
+        // Only between adjacent &lt;li&gt; — never after the last item (would produce e.g. "project., ").
+        if ($list_mode === 'comma') {
+            $value = preg_replace('/<\/li\s*>\s*<li\b[^>]*>/i', ', ', $value);
+        } elseif ($list_mode === 'dot') {
+            $value = preg_replace('/<\/li\s*>\s*<li\b[^>]*>/i', '. ', $value);
         }
 
         // Keep visible separation when HTML blocks/lists are flattened.
