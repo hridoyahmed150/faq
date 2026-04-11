@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 1.2.7
+ * Version: 1.3.0
  * Author: Hridoy Ahmed
  */
 
@@ -33,6 +33,8 @@ class EMG_FAQ_Plugin
     const OPT_ITEM_BORDER_COLOR = 'emg_faq_item_border_color';
     const OPT_ITEM_BORDER_RADIUS = 'emg_faq_item_border_radius';
     const OPT_ITEM_BORDER_SIDES = 'emg_faq_item_border_sides';
+    /** "1" = split FAQ list into two columns on large screens (first half / second half). */
+    const OPT_TWO_COLUMN_LAYOUT = 'emg_faq_two_column_layout';
 
     const STYLE_HANDLE = 'emg-faq-frontend';
 
@@ -104,7 +106,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '1.2.7');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '1.3.0');
         wp_enqueue_style(self::STYLE_HANDLE);
         wp_add_inline_style(self::STYLE_HANDLE, $this->get_frontend_css());
     }
@@ -206,6 +208,15 @@ class EMG_FAQ_Plugin
 .emg-faq-box .emg-faq-question:hover {
 	background: #fafafa;
 }
+.emg-faq-box .emg-faq-question:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.emg-faq-box .emg-faq-question:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
 
 
 .emg-faq-box .emg-faq-question-text {
@@ -271,6 +282,7 @@ class EMG_FAQ_Plugin
 	content: "+";
 	transform: translate(50%, -50%);
 	color: #000;
+    font-family: Arial, sans-serif;
 	font-size: 18px;
 	line-height: 1;
 	font-weight: 700;
@@ -324,6 +336,45 @@ class EMG_FAQ_Plugin
 
 .emg-faq-box.emg-faq-freeform .emg-faq-freeform-body {
 	line-height: 1.6;
+}
+
+.emg-faq-wrapper.emg-faq-layout-two-col {
+	max-width: 100%;
+	width: 100%;
+	margin: 0 auto;
+	padding: 0;
+	background: transparent;
+}
+
+.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-title.emg-faq-title-span {
+	margin: 0 0 20px;
+	font-size: 32px;
+	line-height: 1.2;
+	font-weight: 700;
+}
+
+.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+	align-items: start;
+	width: 100%;
+}
+
+.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-col-left,
+.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-col-right {
+	min-width: 0;
+}
+
+.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-col-left .emg-faq-box,
+.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-col-right .emg-faq-box {
+	margin: 0;
+}
+
+@media (max-width: 782px) {
+	.emg-faq-wrapper.emg-faq-layout-two-col .emg-faq-cols {
+		grid-template-columns: 1fr;
+	}
 }
 ';
     }
@@ -482,6 +533,7 @@ class EMG_FAQ_Plugin
         $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_COLOR, array($this, 'sanitize_border_color'));
         $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_RADIUS, array($this, 'sanitize_border_radius'));
         $this->register_emg_faq_setting(self::OPT_ITEM_BORDER_SIDES, array($this, 'sanitize_border_sides'));
+        $this->register_emg_faq_setting(self::OPT_TWO_COLUMN_LAYOUT, array($this, 'sanitize_manual_schema_flag'));
     }
 
     /**
@@ -755,6 +807,7 @@ class EMG_FAQ_Plugin
         if (!is_array($item_border_sides)) {
             $item_border_sides = array('top', 'right', 'bottom', 'left');
         }
+        $two_column_layout = (string) get_option(self::OPT_TWO_COLUMN_LAYOUT, '0');
         ?>
         <div class="wrap">
             <h1>EMG FAQ</h1>
@@ -885,6 +938,17 @@ class EMG_FAQ_Plugin
                         <option value="arrow" <?php selected($icon_style, 'arrow'); ?>>Arrow</option>
                     </select>
                 </div>
+                <p style="margin-top:16px;">
+                    <label>
+                        <input type="hidden" name="<?php echo esc_attr(self::OPT_TWO_COLUMN_LAYOUT); ?>" value="0" />
+                        <input type="checkbox" id="emg-faq-two-column"
+                            name="<?php echo esc_attr(self::OPT_TWO_COLUMN_LAYOUT); ?>" value="1" <?php checked($two_column_layout, '1'); ?> />
+                        Enable 2 Column FAQ Layout
+                    </label>
+                </p>
+                <p class="description">
+                    When enabled, FAQ items split into two columns on wide screens (first half left, second half right). Each column uses its own accordion. Stacks to one column on smaller screens. Requires at least two items; single-item lists stay one column.
+                </p>
 
                 <h2 style="margin-top:24px;">FAQ Text Style</h2>
                 <p>
@@ -1541,6 +1605,35 @@ class EMG_FAQ_Plugin
         return $template . $faq_html;
     }
 
+    /**
+     * @param array<int, array<string, mixed>> $items
+     */
+    private function render_faq_item_rows($items, $is_plain)
+    {
+        $html = '';
+        foreach ($items as $item) {
+            $q_esc = !empty($item['question_is_html']) ? wp_kses_post($item['q']) : esc_html($item['q']);
+            $html_ans = !empty($item['answer_is_html']);
+            if ($is_plain) {
+                $html .= '<div class="emg-faq-item">';
+                $html .= '<div class="emg-faq-question-text">' . $q_esc . '</div>';
+                $html .= '<div class="emg-faq-answer">';
+                $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
+                $html .= '</div></div>';
+            } else {
+                $html .= '<div class="emg-faq-item emg-faq-acc-item">';
+                $html .= '<button type="button" class="emg-faq-question" aria-expanded="false">';
+                $html .= $q_esc;
+                $html .= '</button>';
+                $html .= '<div class="emg-faq-answer emg-faq-panel" hidden>';
+                $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
+                $html .= '</div></div>';
+            }
+        }
+
+        return $html;
+    }
+
     private function render_faq_block($title, $items, $schema_raw, $display_mode = 'accordion', $extra_class = '')
     {
         if (empty($items)) {
@@ -1555,37 +1648,44 @@ class EMG_FAQ_Plugin
             $wrapper_class .= ' ' . implode(' ', array_map('sanitize_html_class', preg_split('/\s+/', $extra_class)));
         }
 
+        $two_col_on = get_option(self::OPT_TWO_COLUMN_LAYOUT, '0') === '1';
+        $count = count($items);
+        $use_two_columns = $two_col_on && $count >= 2;
+
         ob_start();
-        ?>
-        <div class="<?php echo esc_attr($wrapper_class); ?>">
-            <?php if ($title !== ''): ?>
-                <h2 class="emg-faq-title"><?php echo esc_html($title); ?></h2>
-            <?php endif; ?>
-            <?php foreach ($items as $item): ?>
-                <?php
-                $q_esc = !empty($item['question_is_html']) ? wp_kses_post($item['q']) : esc_html($item['q']);
-                $html_ans = !empty($item['answer_is_html']);
-                ?>
-                <?php if ($is_plain): ?>
-                    <div class="emg-faq-item">
-                        <div class="emg-faq-question-text"><?php echo $q_esc; ?></div>
-                        <div class="emg-faq-answer">
-                            <?php echo $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']); ?>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <div class="emg-faq-item emg-faq-acc-item">
-                        <button type="button" class="emg-faq-question" aria-expanded="false">
-                            <?php echo $q_esc; ?>
-                        </button>
-                        <div class="emg-faq-answer emg-faq-panel" hidden>
-                            <?php echo $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']); ?>
-                        </div>
-                    </div>
+        if ($use_two_columns) {
+            $split = (int) ceil($count / 2);
+            $left_items = array_slice($items, 0, $split);
+            $right_items = array_slice($items, $split);
+            ?>
+            <div class="emg-faq-wrapper emg-faq-layout-two-col">
+                <?php if ($title !== ''): ?>
+                    <h2 class="emg-faq-title emg-faq-title-span"><?php echo esc_html($title); ?></h2>
                 <?php endif; ?>
-            <?php endforeach; ?>
-        </div>
-        <?php
+                <div class="emg-faq-cols">
+                    <div class="emg-faq-col-left">
+                        <div class="<?php echo esc_attr($wrapper_class); ?>">
+                            <?php echo $this->render_faq_item_rows($left_items, $is_plain); ?>
+                        </div>
+                    </div>
+                    <div class="emg-faq-col-right">
+                        <div class="<?php echo esc_attr($wrapper_class); ?>">
+                            <?php echo $this->render_faq_item_rows($right_items, $is_plain); ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php
+        } else {
+            ?>
+            <div class="<?php echo esc_attr($wrapper_class); ?>">
+                <?php if ($title !== ''): ?>
+                    <h2 class="emg-faq-title"><?php echo esc_html($title); ?></h2>
+                <?php endif; ?>
+                <?php echo $this->render_faq_item_rows($items, $is_plain); ?>
+            </div>
+            <?php
+        }
         if (!$is_plain) {
             $this->request_accordion_script();
         }
