@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 1.3.0
+ * Version: 1.3.2
  * Author: Hridoy Ahmed
  */
 
@@ -106,7 +106,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '1.3.0');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '1.3.2');
         wp_enqueue_style(self::STYLE_HANDLE);
         wp_add_inline_style(self::STYLE_HANDLE, $this->get_frontend_css());
     }
@@ -226,7 +226,64 @@ class EMG_FAQ_Plugin
 	line-height: 145%;
 	color: ' . $question_color . ';
 }
-
+' . ($icon_style === 'arrow' ? '
+.emg-faq-box .emg-faq-question.emg-faq-question--arrow {
+	padding: 18px 20px;
+	justify-content: flex-start;
+}
+.emg-faq-box .emg-faq-question.emg-faq-question--arrow .emg-faq-q-inline {
+	flex: 1;
+	min-width: 0;
+	font-weight: 700;
+	font-size: ' . $question_font_size . 'px;
+	line-height: 145%;
+	color: ' . $question_color . ';
+	text-align: left;
+}
+.emg-faq-box .emg-faq-arrow-icon {
+	display: block;
+	height: 24px;
+	width: 24px;
+	min-width: 24px;
+	margin-left: auto;
+	position: relative;
+	flex-shrink: 0;
+	box-sizing: content-box;
+	transition: transform 0.2s ease-in-out;
+}
+.emg-faq-box .emg-faq-arrow-icon::before,
+.emg-faq-box .emg-faq-arrow-icon::after {
+	content: "";
+	height: 2px;
+	position: absolute;
+	top: 11px;
+	width: 12px;
+	background-color: currentColor;
+	transition: transform 0.2s ease-in-out;
+}
+/* Closed: chevron down (no circle) */
+.emg-faq-box .emg-faq-arrow-icon::before {
+	left: 2px;
+	transform: rotate(45deg);
+	transform-origin: 50% 50%;
+}
+.emg-faq-box .emg-faq-arrow-icon::after {
+	right: 2px;
+	transform: rotate(-45deg);
+	transform-origin: 50% 50%;
+}
+/* Open */
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon::before {
+	left: 2px;
+	transform: rotate(-45deg);
+	transform-origin: 50% 50%;
+}
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon::after {
+	right: 2px;
+	transform: rotate(45deg);
+	transform-origin: 50% 50%;
+}
+' : '
 .emg-faq-box .emg-faq-question::before {
 	content: "";
 	position: absolute;
@@ -243,33 +300,7 @@ class EMG_FAQ_Plugin
 	right: 28px;
 	transition: opacity 200ms ease, transform 200ms ease, color 200ms ease;
 }
-' . ($icon_style === 'arrow' ? '
-.emg-faq-box .emg-faq-question::before {
-	width: 28px;
-	height: 28px;
-	border: 2px solid #000;
-	border-radius: 50%;
-	background: #fff;
-}
 
-.emg-faq-box .emg-faq-question::after {
-	width: 9px;
-	height: 9px;
-	border-right: 2px solid #000;
-	border-bottom: 2px solid #000;
-	transform: translate(40%, -60%) rotate(45deg);
-}
-
-.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::before {
-	background: #000;
-}
-
-.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::after {
-	border-right-color: #fff;
-	border-bottom-color: #fff;
-	transform: translate(40%, -40%) rotate(-135deg);
-}
-' : '
 .emg-faq-box .emg-faq-question::before {
 	width: 28px;
 	height: 28px;
@@ -306,6 +337,7 @@ class EMG_FAQ_Plugin
 	font-size: ' . $answer_font_size . 'px;
 	padding: 0 20px;
 	margin-top: 0;
+    text-align: left;
 }
 
 .emg-faq-box .emg-faq-answer p:first-child {
@@ -455,6 +487,11 @@ class EMG_FAQ_Plugin
                             });
                         });
                     } else {
+                        // Icon CSS uses .is-open — remove immediately so plus/arrow animate with the click, not after the panel finishes.
+                        itemEl.classList.remove('is-open');
+                        if (trigger) {
+                            trigger.setAttribute('aria-expanded', 'false');
+                        }
                         if (panel.style.maxHeight === 'none' || panel.style.maxHeight === '') {
                             panel.style.maxHeight = panel.scrollHeight + 'px';
                         }
@@ -465,10 +502,6 @@ class EMG_FAQ_Plugin
                         });
                         onPanelTransitionEnd(panel, function () {
                             clearPanelTimer(panel);
-                            itemEl.classList.remove('is-open');
-                            if (trigger) {
-                                trigger.setAttribute('aria-expanded', 'false');
-                            }
                             panel.hidden = true;
                             itemEl.dataset.animating = '0';
                         });
@@ -1611,6 +1644,9 @@ class EMG_FAQ_Plugin
     private function render_faq_item_rows($items, $is_plain)
     {
         $html = '';
+        $use_arrow_icon = !$is_plain
+            && $this->sanitize_icon_style((string) get_option(self::OPT_ACCORDION_ICON_STYLE, 'plusminus')) === 'arrow';
+
         foreach ($items as $item) {
             $q_esc = !empty($item['question_is_html']) ? wp_kses_post($item['q']) : esc_html($item['q']);
             $html_ans = !empty($item['answer_is_html']);
@@ -1618,6 +1654,15 @@ class EMG_FAQ_Plugin
                 $html .= '<div class="emg-faq-item">';
                 $html .= '<div class="emg-faq-question-text">' . $q_esc . '</div>';
                 $html .= '<div class="emg-faq-answer">';
+                $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
+                $html .= '</div></div>';
+            } elseif ($use_arrow_icon) {
+                $html .= '<div class="emg-faq-item emg-faq-acc-item">';
+                $html .= '<button type="button" class="emg-faq-question emg-faq-question--arrow" aria-expanded="false">';
+                $html .= '<span class="emg-faq-q-inline">' . $q_esc . '</span>';
+                $html .= '<span class="emg-faq-arrow-icon" aria-hidden="true"></span>';
+                $html .= '</button>';
+                $html .= '<div class="emg-faq-answer emg-faq-panel" hidden>';
                 $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
                 $html .= '</div></div>';
             } else {
