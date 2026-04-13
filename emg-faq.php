@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 2.3.0
+ * Version: 2.3.7
  * Author: Hridoy Ahmed
  */
 
@@ -42,10 +42,6 @@ class EMG_FAQ_Plugin
     const OPT_OPEN_FIRST = 'emg_faq_open_first_item';
     const OPT_MULTIPLE_OPEN = 'emg_faq_accordion_multiple_open';
     const OPT_ANIM_MS = 'emg_faq_accordion_anim_ms';
-    const OPT_ICON_POSITION = 'emg_faq_icon_position';
-    const OPT_ICON_SIZE = 'emg_faq_icon_size_px';
-    const OPT_ICON_COLOR = 'emg_faq_icon_color';
-    const OPT_ICON_COLOR_OPEN = 'emg_faq_icon_color_open';
     const OPT_HEADING_WEIGHT = 'emg_faq_heading_font_weight';
     const OPT_HEADING_SIZE_T = 'emg_faq_heading_font_size_tablet';
     const OPT_HEADING_SIZE_M = 'emg_faq_heading_font_size_mobile';
@@ -177,7 +173,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '2.3.0');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '2.3.7');
         wp_enqueue_style(self::STYLE_HANDLE);
         $inline = $this->get_frontend_css();
         $custom = $this->get_frontend_custom_css();
@@ -202,27 +198,10 @@ class EMG_FAQ_Plugin
             $answer_font_size = 16;
         }
         $answer_color = $this->sanitize_css_color_flexible((string) get_option(self::OPT_A_COLOR, '#374151'), '#374151');
-        $border_width = (int) get_option(self::OPT_ITEM_BORDER_WIDTH, 1);
-        if ($border_width < 0 || $border_width > 20) {
-            $border_width = 1;
-        }
         $border_radius = (int) get_option(self::OPT_ITEM_BORDER_RADIUS, 8);
         if ($border_radius < 0 || $border_radius > 80) {
             $border_radius = 8;
         }
-        $border_color = $this->sanitize_css_color_flexible((string) get_option(self::OPT_ITEM_BORDER_COLOR, '#dddddd'), '#dddddd');
-        $border_sides = get_option(self::OPT_ITEM_BORDER_SIDES, array('top', 'right', 'bottom', 'left'));
-        if (!is_array($border_sides) || empty($border_sides)) {
-            $border_sides = array('top', 'right', 'bottom', 'left');
-        }
-        $has_top = in_array('top', $border_sides, true);
-        $has_right = in_array('right', $border_sides, true);
-        $has_bottom = in_array('bottom', $border_sides, true);
-        $has_left = in_array('left', $border_sides, true);
-        $border_top = $has_top ? $border_width . 'px solid ' . $border_color : '0';
-        $border_right = $has_right ? $border_width . 'px solid ' . $border_color : '0';
-        $border_bottom = $has_bottom ? $border_width . 'px solid ' . $border_color : '0';
-        $border_left = $has_left ? $border_width . 'px solid ' . $border_color : '0';
 
         $anim_ms = (int) get_option(self::OPT_ANIM_MS, 300);
         if ($anim_ms < 100) {
@@ -250,14 +229,11 @@ class EMG_FAQ_Plugin
 	font-weight: 700;
 }
 .emg-faq-box .emg-faq-item {
-	border-top: ' . $border_top . ';
-	border-right: ' . $border_right . ';
-	border-bottom: ' . $border_bottom . ';
-	border-left: ' . $border_left . ';
+	border: 0;
 	border-radius: ' . $border_radius . 'px;
 	margin-bottom: 10px;
 	background: #fff;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	box-shadow: none;
 	overflow: hidden;
 	padding: 0;
 }
@@ -305,10 +281,10 @@ class EMG_FAQ_Plugin
 	color: ' . $question_color . ';
 }
 ' . ($use_line_icon ? '
-.emg-faq-box .emg-faq-question.emg-faq-question--arrow {
+.emg-faq-box .emg-faq-question.emg-faq-question-arrow {
 	justify-content: flex-start;
 }
-.emg-faq-box .emg-faq-question.emg-faq-question--arrow .emg-faq-q-inline {
+.emg-faq-box .emg-faq-question.emg-faq-question-arrow .emg-faq-q-inline {
 	flex: 1;
 	min-width: 0;
 	font-weight: 700;
@@ -319,75 +295,78 @@ class EMG_FAQ_Plugin
 }
 .emg-faq-box .emg-faq-arrow-icon {
 	display: block;
-	font-size: 24px;
-	width: 1em;
-	height: 1em;
-	min-width: 1em;
+	height: 24px;
+	width: 24px;
+	min-width: 24px;
 	margin-left: auto;
 	position: relative;
 	flex-shrink: 0;
-	box-sizing: border-box;
-	border: 0.083em solid currentColor;
-	border-radius: 50%;
-	background: transparent;
-}
-.emg-faq-box .emg-faq-arrow-icon::before {
-	content: "";
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	width: 0.38em;
-	height: 0.38em;
-	margin: 0;
-	box-sizing: border-box;
-	border-right: 0.09em solid currentColor;
-	border-bottom: 0.09em solid currentColor;
-	background: transparent;
-	transform: translate(-50%, -50%) rotate(45deg);
-	transform-origin: 50% 50%;
+	box-sizing: content-box;
 	transition: transform 0.2s ease-in-out;
 }
+.emg-faq-box .emg-faq-arrow-icon::before,
 .emg-faq-box .emg-faq-arrow-icon::after {
-	content: none;
-	display: none;
+	content: "";
+	height: 2px;
+	position: absolute;
+	top: 11px;
+	width: 12px;
+	background-color: currentColor;
+	transition: transform 0.2s ease-in-out;
+}
+.emg-faq-box .emg-faq-arrow-icon::before {
+		left: 2px;
+	transform: rotate(45deg);
+	transform-origin: 50% 50%;
+}
+.emg-faq-box .emg-faq-arrow-icon::after {
+	right: 2px;
+	transform: rotate(-45deg);
+	transform-origin: 50% 50%;
 }
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon::before {
-	transform: translate(-50%, -50%) rotate(-135deg);
+	left: 2px;
+	transform: rotate(-45deg);
+	transform-origin: 50% 50%;
+
+}
+.emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon::after {
+	right: 2px;
+	transform: rotate(45deg);
+	transform-origin: 50% 50%;
 }
 ' : '
 .emg-faq-box .emg-faq-question::before {
 	content: "";
 	position: absolute;
+	left: calc(100% - 28px);
 	top: 50%;
-	right: 28px;
-	transform: translate(50%, -50%);
+	right: auto;
+	margin: 0;
+	transform: translate(-50%, -50%);
 	transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
-}
-
-.emg-faq-box .emg-faq-question::after {
-	content: "";
-	position: absolute;
-	top: 50%;
-	right: 28px;
-	transition: opacity 200ms ease, transform 200ms ease, color 200ms ease;
-}
-
-.emg-faq-box .emg-faq-question::before {
 	width: 28px;
 	height: 28px;
-	border: 2px solid #000;
+	border: 2px solid currentColor;
 	border-radius: 50%;
 	background: transparent;
+	box-sizing: border-box;
 }
 
 .emg-faq-box .emg-faq-question::after {
 	content: "+";
-	transform: translate(50%, -50%);
-	color: #000;
-    font-family: Arial, sans-serif;
-	font-size: 18px;
+	position: absolute;
+	left: calc(100% - 28px);
+	top: 50%;
+	right: auto;
+	margin: 0;
+	transform: translate(-50%, -50%);
+	color: currentColor;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 15px;
 	line-height: 1;
 	font-weight: 700;
+	transition: opacity 200ms ease, transform 200ms ease, color 200ms ease;
 }
 
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::before {
@@ -397,8 +376,8 @@ class EMG_FAQ_Plugin
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::after {
 	content: "−";
 	opacity: 1;
-	transform: translate(50%, -52%);
-	color: #000;
+	transform: translate(-50%, -50%);
+	color: currentColor;
 }
 ') . '
 
@@ -696,10 +675,6 @@ class EMG_FAQ_Plugin
         $this->register_emg_faq_setting(self::OPT_OPEN_FIRST, array($this, 'sanitize_manual_schema_flag'));
         $this->register_emg_faq_setting(self::OPT_MULTIPLE_OPEN, array($this, 'sanitize_manual_schema_flag'));
         $this->register_emg_faq_setting(self::OPT_ANIM_MS, array($this, 'sanitize_anim_ms'));
-        $this->register_emg_faq_setting(self::OPT_ICON_POSITION, array($this, 'sanitize_icon_position'));
-        $this->register_emg_faq_setting(self::OPT_ICON_SIZE, array($this, 'sanitize_icon_size_px'));
-        $this->register_emg_faq_setting(self::OPT_ICON_COLOR, array($this, 'sanitize_optional_css_color'));
-        $this->register_emg_faq_setting(self::OPT_ICON_COLOR_OPEN, array($this, 'sanitize_optional_css_color'));
         $this->register_emg_faq_setting(self::OPT_HEADING_WEIGHT, array($this, 'sanitize_heading_weight'));
         $this->register_emg_faq_setting(self::OPT_HEADING_SIZE_T, array($this, 'sanitize_font_size_or_zero'));
         $this->register_emg_faq_setting(self::OPT_HEADING_SIZE_M, array($this, 'sanitize_font_size_or_zero'));
@@ -717,18 +692,42 @@ class EMG_FAQ_Plugin
         $this->register_emg_faq_setting(self::OPT_CONTENT_LH_T, array($this, 'sanitize_line_height_or_zero'));
         $this->register_emg_faq_setting(self::OPT_CONTENT_LH_M, array($this, 'sanitize_line_height_or_zero'));
         $pad_opts = array(
-            self::OPT_PAD_C_TOP_D, self::OPT_PAD_C_TOP_T, self::OPT_PAD_C_TOP_M,
-            self::OPT_PAD_C_RIGHT_D, self::OPT_PAD_C_RIGHT_T, self::OPT_PAD_C_RIGHT_M,
-            self::OPT_PAD_C_BOTTOM_D, self::OPT_PAD_C_BOTTOM_T, self::OPT_PAD_C_BOTTOM_M,
-            self::OPT_PAD_C_LEFT_D, self::OPT_PAD_C_LEFT_T, self::OPT_PAD_C_LEFT_M,
-            self::OPT_PAD_Q_TOP_D, self::OPT_PAD_Q_TOP_T, self::OPT_PAD_Q_TOP_M,
-            self::OPT_PAD_Q_RIGHT_D, self::OPT_PAD_Q_RIGHT_T, self::OPT_PAD_Q_RIGHT_M,
-            self::OPT_PAD_Q_BOTTOM_D, self::OPT_PAD_Q_BOTTOM_T, self::OPT_PAD_Q_BOTTOM_M,
-            self::OPT_PAD_Q_LEFT_D, self::OPT_PAD_Q_LEFT_T, self::OPT_PAD_Q_LEFT_M,
-            self::OPT_PAD_A_TOP_D, self::OPT_PAD_A_TOP_T, self::OPT_PAD_A_TOP_M,
-            self::OPT_PAD_A_RIGHT_D, self::OPT_PAD_A_RIGHT_T, self::OPT_PAD_A_RIGHT_M,
-            self::OPT_PAD_A_BOTTOM_D, self::OPT_PAD_A_BOTTOM_T, self::OPT_PAD_A_BOTTOM_M,
-            self::OPT_PAD_A_LEFT_D, self::OPT_PAD_A_LEFT_T, self::OPT_PAD_A_LEFT_M,
+            self::OPT_PAD_C_TOP_D,
+            self::OPT_PAD_C_TOP_T,
+            self::OPT_PAD_C_TOP_M,
+            self::OPT_PAD_C_RIGHT_D,
+            self::OPT_PAD_C_RIGHT_T,
+            self::OPT_PAD_C_RIGHT_M,
+            self::OPT_PAD_C_BOTTOM_D,
+            self::OPT_PAD_C_BOTTOM_T,
+            self::OPT_PAD_C_BOTTOM_M,
+            self::OPT_PAD_C_LEFT_D,
+            self::OPT_PAD_C_LEFT_T,
+            self::OPT_PAD_C_LEFT_M,
+            self::OPT_PAD_Q_TOP_D,
+            self::OPT_PAD_Q_TOP_T,
+            self::OPT_PAD_Q_TOP_M,
+            self::OPT_PAD_Q_RIGHT_D,
+            self::OPT_PAD_Q_RIGHT_T,
+            self::OPT_PAD_Q_RIGHT_M,
+            self::OPT_PAD_Q_BOTTOM_D,
+            self::OPT_PAD_Q_BOTTOM_T,
+            self::OPT_PAD_Q_BOTTOM_M,
+            self::OPT_PAD_Q_LEFT_D,
+            self::OPT_PAD_Q_LEFT_T,
+            self::OPT_PAD_Q_LEFT_M,
+            self::OPT_PAD_A_TOP_D,
+            self::OPT_PAD_A_TOP_T,
+            self::OPT_PAD_A_TOP_M,
+            self::OPT_PAD_A_RIGHT_D,
+            self::OPT_PAD_A_RIGHT_T,
+            self::OPT_PAD_A_RIGHT_M,
+            self::OPT_PAD_A_BOTTOM_D,
+            self::OPT_PAD_A_BOTTOM_T,
+            self::OPT_PAD_A_BOTTOM_M,
+            self::OPT_PAD_A_LEFT_D,
+            self::OPT_PAD_A_LEFT_T,
+            self::OPT_PAD_A_LEFT_M,
         );
         foreach ($pad_opts as $po) {
             $this->register_emg_faq_setting($po, array($this, 'sanitize_pad_px'));
@@ -984,7 +983,7 @@ class EMG_FAQ_Plugin
         if ($t === '') {
             return 'emg-faq-wp-color widefat';
         }
-        if ($this->parse_css_color_token($t) !== null && ! preg_match('/^rgba?\(/i', $t)) {
+        if ($this->parse_css_color_token($t) !== null && !preg_match('/^rgba?\(/i', $t)) {
             return 'emg-faq-wp-color widefat';
         }
         return 'widefat';
@@ -1049,24 +1048,6 @@ class EMG_FAQ_Plugin
         }
         if ($n > 1500) {
             $n = 1500;
-        }
-        return (string) $n;
-    }
-
-    public function sanitize_icon_position($value)
-    {
-        $v = is_string($value) ? strtolower(trim($value)) : 'right';
-        return in_array($v, array('left', 'right'), true) ? $v : 'right';
-    }
-
-    public function sanitize_icon_size_px($value)
-    {
-        $n = (int) $value;
-        if ($n < 0) {
-            $n = 0;
-        }
-        if ($n > 48) {
-            $n = 48;
         }
         return (string) $n;
     }
@@ -1227,7 +1208,60 @@ class EMG_FAQ_Plugin
     }
 
     /**
-     * Extra rules from Style tab (padding always emitted; desktop defaults match legacy layout when options are unset).
+     * When border width was never saved: accordion defaults to 1px, plain to 0. Saved value applies to both modes.
+     *
+     * @return array{accordion:int,plain:int}
+     */
+    private function resolve_effective_item_border_widths()
+    {
+        $saved = get_option(self::OPT_ITEM_BORDER_WIDTH, false);
+        if ($saved === false || $saved === null) {
+            return array('accordion' => 1, 'plain' => 0);
+        }
+        $w = max(0, min(20, (int) $saved));
+
+        return array('accordion' => $w, 'plain' => $w);
+    }
+
+    /**
+     * @return array{top:string,right:string,bottom:string,left:string}
+     */
+    private function build_item_border_edge_css($width_px, $border_color, array $border_sides)
+    {
+        $has_top = in_array('top', $border_sides, true);
+        $has_right = in_array('right', $border_sides, true);
+        $has_bottom = in_array('bottom', $border_sides, true);
+        $has_left = in_array('left', $border_sides, true);
+        $w = max(0, min(20, (int) $width_px));
+        $c = $border_color;
+
+        return array(
+            'top' => ($w > 0 && $has_top) ? $w . 'px solid ' . $c : '0',
+            'right' => ($w > 0 && $has_right) ? $w . 'px solid ' . $c : '0',
+            'bottom' => ($w > 0 && $has_bottom) ? $w . 'px solid ' . $c : '0',
+            'left' => ($w > 0 && $has_left) ? $w . 'px solid ' . $c : '0',
+        );
+    }
+
+    /**
+     * Padding option: explicit saved value wins; otherwise use default for accordion vs plain output.
+     *
+     * @param string $opt
+     * @param int    $default_accordion
+     * @param int    $default_plain
+     */
+    private function pad_px_for_mode($opt, $default_accordion, $default_plain, $is_plain)
+    {
+        $v = get_option($opt, null);
+        if ($v !== null && $v !== false && $v !== '') {
+            return max(0, min(120, (int) $v));
+        }
+
+        return max(0, min(120, (int) ($is_plain ? $default_plain : $default_accordion)));
+    }
+
+    /**
+     * Extra rules from Style tab (padding always emitted; sensible defaults when options are unset).
      *
      * @return string
      */
@@ -1253,12 +1287,22 @@ class EMG_FAQ_Plugin
         $a_t = (int) get_option(self::OPT_CONTENT_FS_T, 0);
         $a_m = (int) get_option(self::OPT_CONTENT_FS_M, 0);
 
-        $icon_pos = $this->sanitize_icon_position((string) get_option(self::OPT_ICON_POSITION, 'right'));
-        $icon_sz = (int) get_option(self::OPT_ICON_SIZE, 0);
-        $icon_c = $this->optional_color_css(get_option(self::OPT_ICON_COLOR, ''));
-        $icon_co = $this->optional_color_css(get_option(self::OPT_ICON_COLOR_OPEN, ''));
-
         $lines = array();
+
+        $bws = $this->resolve_effective_item_border_widths();
+        $border_color = $this->sanitize_css_color_flexible((string) get_option(self::OPT_ITEM_BORDER_COLOR, '#dddddd'), '#dddddd');
+        $border_sides = get_option(self::OPT_ITEM_BORDER_SIDES, array('top', 'right', 'bottom', 'left'));
+        if (!is_array($border_sides) || empty($border_sides)) {
+            $border_sides = array('top', 'right', 'bottom', 'left');
+        }
+        $edge_acc = $this->build_item_border_edge_css($bws['accordion'], $border_color, $border_sides);
+        $edge_plain = $this->build_item_border_edge_css($bws['plain'], $border_color, $border_sides);
+        $sel_item_acc = $root . '[data-emg-faq-mode="accordion"] .emg-faq-box .emg-faq-item';
+        $sel_item_plain = $root . '[data-emg-faq-mode="plain"] .emg-faq-box .emg-faq-item';
+        $lines[] = $sel_item_acc . ' { border-top: ' . $edge_acc['top'] . '; border-right: ' . $edge_acc['right'] . '; border-bottom: ' . $edge_acc['bottom'] . '; border-left: ' . $edge_acc['left'] . '; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }';
+        if ($bws['plain'] > 0) {
+            $lines[] = $sel_item_plain . ' { border-top: ' . $edge_plain['top'] . '; border-right: ' . $edge_plain['right'] . '; border-bottom: ' . $edge_plain['bottom'] . '; border-left: ' . $edge_plain['left'] . '; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }';
+        }
 
         $col_gap = (int) get_option(self::OPT_COLUMN_GAP, 0);
         if ($col_gap > 0) {
@@ -1287,40 +1331,76 @@ class EMG_FAQ_Plugin
             (int) get_option(self::OPT_PAD_C_LEFT_M, 0)
         );
 
-        $q_sel = $root . ' .emg-faq-box .emg-faq-question, ' . $root . ' .emg-faq-box .emg-faq-question-text';
+        $q_acc = $root . '[data-emg-faq-mode="accordion"] .emg-faq-box .emg-faq-question';
         $this->append_trbl_padding_css(
             $lines,
-            $q_sel,
-            (int) get_option(self::OPT_PAD_Q_TOP_D, 18),
-            (int) get_option(self::OPT_PAD_Q_RIGHT_D, 56),
-            (int) get_option(self::OPT_PAD_Q_BOTTOM_D, 18),
-            (int) get_option(self::OPT_PAD_Q_LEFT_D, 20),
-            (int) get_option(self::OPT_PAD_Q_TOP_T, 0),
-            (int) get_option(self::OPT_PAD_Q_RIGHT_T, 0),
-            (int) get_option(self::OPT_PAD_Q_BOTTOM_T, 0),
-            (int) get_option(self::OPT_PAD_Q_LEFT_T, 0),
-            (int) get_option(self::OPT_PAD_Q_TOP_M, 0),
-            (int) get_option(self::OPT_PAD_Q_RIGHT_M, 0),
-            (int) get_option(self::OPT_PAD_Q_BOTTOM_M, 0),
-            (int) get_option(self::OPT_PAD_Q_LEFT_M, 0)
+            $q_acc,
+            $this->pad_px_for_mode(self::OPT_PAD_Q_TOP_D, 18, 18, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_RIGHT_D, 56, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_BOTTOM_D, 18, 18, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_D, 20, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_TOP_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_RIGHT_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_BOTTOM_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_TOP_M, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_RIGHT_M, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_BOTTOM_M, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_M, 0, 0, false)
         );
 
-        $a_sel = $root . ' .emg-faq-box .emg-faq-answer';
+        $q_plain = $root . '[data-emg-faq-mode="plain"] .emg-faq-box .emg-faq-question-text';
         $this->append_trbl_padding_css(
             $lines,
-            $a_sel,
-            (int) get_option(self::OPT_PAD_A_TOP_D, 0),
-            (int) get_option(self::OPT_PAD_A_RIGHT_D, 20),
-            (int) get_option(self::OPT_PAD_A_BOTTOM_D, 0),
-            (int) get_option(self::OPT_PAD_A_LEFT_D, 20),
-            (int) get_option(self::OPT_PAD_A_TOP_T, 0),
-            (int) get_option(self::OPT_PAD_A_RIGHT_T, 0),
-            (int) get_option(self::OPT_PAD_A_BOTTOM_T, 0),
-            (int) get_option(self::OPT_PAD_A_LEFT_T, 0),
-            (int) get_option(self::OPT_PAD_A_TOP_M, 0),
-            (int) get_option(self::OPT_PAD_A_RIGHT_M, 0),
-            (int) get_option(self::OPT_PAD_A_BOTTOM_M, 0),
-            (int) get_option(self::OPT_PAD_A_LEFT_M, 0)
+            $q_plain,
+            $this->pad_px_for_mode(self::OPT_PAD_Q_TOP_D, 18, 18, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_RIGHT_D, 56, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_BOTTOM_D, 18, 18, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_D, 20, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_TOP_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_RIGHT_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_BOTTOM_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_TOP_M, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_RIGHT_M, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_BOTTOM_M, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_M, 0, 0, true)
+        );
+
+        $a_acc = $root . '[data-emg-faq-mode="accordion"] .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-answer';
+        $this->append_trbl_padding_css(
+            $lines,
+            $a_acc,
+            $this->pad_px_for_mode(self::OPT_PAD_A_TOP_D, 12, 12, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_RIGHT_D, 20, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_BOTTOM_D, 16, 16, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_LEFT_D, 20, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_TOP_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_RIGHT_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_BOTTOM_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_LEFT_T, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_TOP_M, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_RIGHT_M, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_BOTTOM_M, 0, 0, false),
+            $this->pad_px_for_mode(self::OPT_PAD_A_LEFT_M, 0, 0, false)
+        );
+
+        $a_plain = $root . '[data-emg-faq-mode="plain"] .emg-faq-box .emg-faq-item:not(.emg-faq-acc-item) .emg-faq-answer';
+        $this->append_trbl_padding_css(
+            $lines,
+            $a_plain,
+            $this->pad_px_for_mode(self::OPT_PAD_A_TOP_D, 12, 12, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_RIGHT_D, 20, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_BOTTOM_D, 16, 16, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_LEFT_D, 20, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_TOP_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_RIGHT_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_BOTTOM_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_LEFT_T, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_TOP_M, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_RIGHT_M, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_BOTTOM_M, 0, 0, true),
+            $this->pad_px_for_mode(self::OPT_PAD_A_LEFT_M, 0, 0, true)
         );
 
         if ($gap > 0) {
@@ -1335,7 +1415,7 @@ class EMG_FAQ_Plugin
         }
 
         if ($q_hover !== '') {
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question:hover { background: ' . $q_hover . '; }';
+            $lines[] = $root . '[data-emg-faq-mode="accordion"] .emg-faq-box .emg-faq-question:hover { background: ' . $q_hover . '; }';
         }
 
         if ($h_w !== '0') {
@@ -1345,11 +1425,11 @@ class EMG_FAQ_Plugin
 
         if ($h_t >= 8) {
             $lines[] = '@media (max-width: 1024px) { ' . $root . ' .emg-faq-box .emg-faq-title, ' . $root . ' .emg-faq-wrapper .emg-faq-title.emg-faq-title-span { font-size: ' . $h_t . 'px; } '
-                . $root . ' .emg-faq-box .emg-faq-question-text, ' . $root . ' .emg-faq-box .emg-faq-question:not(.emg-faq-question--arrow), ' . $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--arrow .emg-faq-q-inline { font-size: ' . $h_t . 'px; } }';
+                . $root . ' .emg-faq-box .emg-faq-question-text, ' . $root . ' .emg-faq-box .emg-faq-question:not(.emg-faq-question-arrow), ' . $root . ' .emg-faq-box .emg-faq-question.emg-faq-question-arrow .emg-faq-q-inline { font-size: ' . $h_t . 'px; } }';
         }
         if ($h_m >= 8) {
             $lines[] = '@media (max-width: 782px) { ' . $root . ' .emg-faq-box .emg-faq-title, ' . $root . ' .emg-faq-wrapper .emg-faq-title.emg-faq-title-span { font-size: ' . $h_m . 'px; } '
-                . $root . ' .emg-faq-box .emg-faq-question-text, ' . $root . ' .emg-faq-box .emg-faq-question:not(.emg-faq-question--arrow), ' . $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--arrow .emg-faq-q-inline { font-size: ' . $h_m . 'px; } }';
+                . $root . ' .emg-faq-box .emg-faq-question-text, ' . $root . ' .emg-faq-box .emg-faq-question:not(.emg-faq-question-arrow), ' . $root . ' .emg-faq-box .emg-faq-question.emg-faq-question-arrow .emg-faq-q-inline { font-size: ' . $h_m . 'px; } }';
         }
 
         if ($lh !== '0' && (float) $lh > 0) {
@@ -1366,30 +1446,6 @@ class EMG_FAQ_Plugin
         }
         if ($a_m >= 8) {
             $lines[] = '@media (max-width: 782px) { ' . $root . ' .emg-faq-box .emg-faq-answer { font-size: ' . $a_m . 'px; } }';
-        }
-
-        if ($icon_sz > 0) {
-            $fs = max(16, min(48, $icon_sz));
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question::before { width: ' . $fs . 'px; height: ' . $fs . 'px; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question::after { font-size: ' . max(10, min(36, (int) round($fs * 0.64))) . 'px; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-arrow-icon { font-size: ' . $fs . 'px; }';
-        }
-        if ($icon_c !== '') {
-            $lines[] = $root . ' .emg-faq-box .emg-faq-arrow-icon { color: ' . $icon_c . '; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question::before { border-color: ' . $icon_c . '; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question::after { color: ' . $icon_c . '; }';
-        }
-        if ($icon_co !== '') {
-            $lines[] = $root . ' .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-question::after { color: ' . $icon_co . '; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon { color: ' . $icon_co . '; }';
-        }
-
-        if ($icon_pos === 'left') {
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--icon-left { flex-direction: row; justify-content: flex-start; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--icon-left::before { left: 28px; right: auto; transform: translate(-50%, -50%); }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--icon-left::after { left: 28px; right: auto; transform: translate(-50%, -50%); }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--arrow.emg-faq-question--icon-left .emg-faq-arrow-icon { margin-left: 0; margin-right: 12px; order: -1; }';
-            $lines[] = $root . ' .emg-faq-box .emg-faq-question.emg-faq-question--arrow.emg-faq-question--icon-left .emg-faq-q-inline { flex: 1; }';
         }
 
         return "\n" . implode("\n", $lines) . "\n";
@@ -1446,6 +1502,17 @@ class EMG_FAQ_Plugin
                     twoColCb.addEventListener('change', syncColumnGapVisibility);
                     syncColumnGapVisibility();
                 }
+
+                document.querySelectorAll('.emg-faq-pad-bp-toggle').forEach(function (sel) {
+                    sel.addEventListener('change', function () {
+                        var wrap = sel.closest('.emg-faq-pad-section');
+                        if (!wrap) return;
+                        var bp = sel.value;
+                        wrap.querySelectorAll('.emg-faq-pad-bp-panel').forEach(function (p) {
+                            p.style.display = p.getAttribute('data-bp') === bp ? '' : 'none';
+                        });
+                    });
+                });
 
                 var list = document.getElementById('emg-faq-items-list');
                 var addBtn = document.getElementById('emg-faq-add-item');
@@ -1590,22 +1657,86 @@ class EMG_FAQ_Plugin
         static $map = null;
         if ($map === null) {
             $map = array(
-                'c_top_d' => self::OPT_PAD_C_TOP_D, 'c_top_t' => self::OPT_PAD_C_TOP_T, 'c_top_m' => self::OPT_PAD_C_TOP_M,
-                'c_right_d' => self::OPT_PAD_C_RIGHT_D, 'c_right_t' => self::OPT_PAD_C_RIGHT_T, 'c_right_m' => self::OPT_PAD_C_RIGHT_M,
-                'c_bottom_d' => self::OPT_PAD_C_BOTTOM_D, 'c_bottom_t' => self::OPT_PAD_C_BOTTOM_T, 'c_bottom_m' => self::OPT_PAD_C_BOTTOM_M,
-                'c_left_d' => self::OPT_PAD_C_LEFT_D, 'c_left_t' => self::OPT_PAD_C_LEFT_T, 'c_left_m' => self::OPT_PAD_C_LEFT_M,
-                'q_top_d' => self::OPT_PAD_Q_TOP_D, 'q_top_t' => self::OPT_PAD_Q_TOP_T, 'q_top_m' => self::OPT_PAD_Q_TOP_M,
-                'q_right_d' => self::OPT_PAD_Q_RIGHT_D, 'q_right_t' => self::OPT_PAD_Q_RIGHT_T, 'q_right_m' => self::OPT_PAD_Q_RIGHT_M,
-                'q_bottom_d' => self::OPT_PAD_Q_BOTTOM_D, 'q_bottom_t' => self::OPT_PAD_Q_BOTTOM_T, 'q_bottom_m' => self::OPT_PAD_Q_BOTTOM_M,
-                'q_left_d' => self::OPT_PAD_Q_LEFT_D, 'q_left_t' => self::OPT_PAD_Q_LEFT_T, 'q_left_m' => self::OPT_PAD_Q_LEFT_M,
-                'a_top_d' => self::OPT_PAD_A_TOP_D, 'a_top_t' => self::OPT_PAD_A_TOP_T, 'a_top_m' => self::OPT_PAD_A_TOP_M,
-                'a_right_d' => self::OPT_PAD_A_RIGHT_D, 'a_right_t' => self::OPT_PAD_A_RIGHT_T, 'a_right_m' => self::OPT_PAD_A_RIGHT_M,
-                'a_bottom_d' => self::OPT_PAD_A_BOTTOM_D, 'a_bottom_t' => self::OPT_PAD_A_BOTTOM_T, 'a_bottom_m' => self::OPT_PAD_A_BOTTOM_M,
-                'a_left_d' => self::OPT_PAD_A_LEFT_D, 'a_left_t' => self::OPT_PAD_A_LEFT_T, 'a_left_m' => self::OPT_PAD_A_LEFT_M,
+                'c_top_d' => self::OPT_PAD_C_TOP_D,
+                'c_top_t' => self::OPT_PAD_C_TOP_T,
+                'c_top_m' => self::OPT_PAD_C_TOP_M,
+                'c_right_d' => self::OPT_PAD_C_RIGHT_D,
+                'c_right_t' => self::OPT_PAD_C_RIGHT_T,
+                'c_right_m' => self::OPT_PAD_C_RIGHT_M,
+                'c_bottom_d' => self::OPT_PAD_C_BOTTOM_D,
+                'c_bottom_t' => self::OPT_PAD_C_BOTTOM_T,
+                'c_bottom_m' => self::OPT_PAD_C_BOTTOM_M,
+                'c_left_d' => self::OPT_PAD_C_LEFT_D,
+                'c_left_t' => self::OPT_PAD_C_LEFT_T,
+                'c_left_m' => self::OPT_PAD_C_LEFT_M,
+                'q_top_d' => self::OPT_PAD_Q_TOP_D,
+                'q_top_t' => self::OPT_PAD_Q_TOP_T,
+                'q_top_m' => self::OPT_PAD_Q_TOP_M,
+                'q_right_d' => self::OPT_PAD_Q_RIGHT_D,
+                'q_right_t' => self::OPT_PAD_Q_RIGHT_T,
+                'q_right_m' => self::OPT_PAD_Q_RIGHT_M,
+                'q_bottom_d' => self::OPT_PAD_Q_BOTTOM_D,
+                'q_bottom_t' => self::OPT_PAD_Q_BOTTOM_T,
+                'q_bottom_m' => self::OPT_PAD_Q_BOTTOM_M,
+                'q_left_d' => self::OPT_PAD_Q_LEFT_D,
+                'q_left_t' => self::OPT_PAD_Q_LEFT_T,
+                'q_left_m' => self::OPT_PAD_Q_LEFT_M,
+                'a_top_d' => self::OPT_PAD_A_TOP_D,
+                'a_top_t' => self::OPT_PAD_A_TOP_T,
+                'a_top_m' => self::OPT_PAD_A_TOP_M,
+                'a_right_d' => self::OPT_PAD_A_RIGHT_D,
+                'a_right_t' => self::OPT_PAD_A_RIGHT_T,
+                'a_right_m' => self::OPT_PAD_A_RIGHT_M,
+                'a_bottom_d' => self::OPT_PAD_A_BOTTOM_D,
+                'a_bottom_t' => self::OPT_PAD_A_BOTTOM_T,
+                'a_bottom_m' => self::OPT_PAD_A_BOTTOM_M,
+                'a_left_d' => self::OPT_PAD_A_LEFT_D,
+                'a_left_t' => self::OPT_PAD_A_LEFT_T,
+                'a_left_m' => self::OPT_PAD_A_LEFT_M,
             );
         }
         $key = $g . '_' . $side . '_' . $bp;
         return isset($map[$key]) ? $map[$key] : self::OPT_PAD_C_TOP_D;
+    }
+
+    /**
+     * Saved padding or recommended default when the option was never stored.
+     *
+     * @param string $g c | q | a
+     * @param string $side top | right | bottom | left
+     * @param string $bp d | t | m
+     */
+    private function get_admin_pad_field_value($g, $side, $bp)
+    {
+        static $defaults = null;
+        if ($defaults === null) {
+            $z = array('top' => '0', 'right' => '0', 'bottom' => '0', 'left' => '0');
+            $defaults = array(
+                'c' => array('d' => $z, 't' => $z, 'm' => $z),
+                'q' => array(
+                    'd' => array('top' => '18', 'right' => '56', 'bottom' => '18', 'left' => '20'),
+                    't' => $z,
+                    'm' => $z,
+                ),
+                'a' => array(
+                    'd' => array('top' => '12', 'right' => '20', 'bottom' => '16', 'left' => '20'),
+                    't' => $z,
+                    'm' => $z,
+                ),
+            );
+        }
+        $opt = $this->pad_option_for($g, $side, $bp);
+        $v = get_option($opt, null);
+        if ($v !== null && $v !== false && $v !== '') {
+            return (string) $v;
+        }
+        $is_plain_settings = ((string) get_option(self::OPT_DISPLAY_MODE, 'accordion') === 'plain');
+        if ($is_plain_settings && ($g === 'q' || $g === 'a') && ($side === 'left' || $side === 'right')) {
+            return '0';
+        }
+        $def = isset($defaults[$g][$bp][$side]) ? $defaults[$g][$bp][$side] : '0';
+
+        return $def;
     }
 
     /**
@@ -1615,8 +1746,8 @@ class EMG_FAQ_Plugin
     {
         $bps = array(
             'd' => __('Desktop', 'emg-faq'),
-            't' => __('Tablet (max 1024px)', 'emg-faq'),
-            'm' => __('Mobile (max 782px)', 'emg-faq'),
+            't' => __('Tablet (≤1024px)', 'emg-faq'),
+            'm' => __('Mobile (≤782px)', 'emg-faq'),
         );
         $sides = array(
             'top' => __('Top', 'emg-faq'),
@@ -1624,19 +1755,43 @@ class EMG_FAQ_Plugin
             'bottom' => __('Bottom', 'emg-faq'),
             'left' => __('Left', 'emg-faq'),
         );
-        echo '<div class="emg-faq-field-row"><span class="emg-faq-field-label">' . esc_html($heading) . '</span></div>';
+        $hints = array(
+            'c' => __('Wraps the FAQ block and two-column wrapper.', 'emg-faq'),
+            'q' => __('The question row (accordion button or plain heading).', 'emg-faq'),
+            'a' => __('The answer area (when accordion row is open, or always in plain mode).', 'emg-faq'),
+        );
+        $uid = 'emg-faq-pad-bp-' . preg_replace('/[^a-z]/', '', $g);
+        $g_class = preg_replace('/[^a-z]/', '', $g);
+        echo '<div class="emg-faq-pad-section emg-faq-pad-section--' . esc_attr($g_class) . '">';
+        echo '<div class="emg-faq-pad-head">' . esc_html($heading) . '</div>';
+        if (isset($hints[$g])) {
+            echo '<p class="description emg-faq-pad-hint">' . esc_html($hints[$g]) . '</p>';
+        }
+        echo '<div class="emg-faq-field-row emg-faq-pad-bp-row">';
+        echo '<label for="' . esc_attr($uid) . '" class="emg-faq-field-label" style="margin-right:10px;">' . esc_html__('Breakpoint', 'emg-faq') . '</label>';
+        echo '<select id="' . esc_attr($uid) . '" class="emg-faq-pad-bp-toggle" style="max-width:280px;">';
         foreach ($bps as $bp => $bp_label) {
-            echo '<div class="emg-faq-field-row"><span class="emg-faq-field-label" style="font-weight:500;">' . esc_html($bp_label) . '</span>';
-            echo '<div class="emg-faq-trbl-grid">';
+            echo '<option value="' . esc_attr($bp) . '">' . esc_html($bp_label) . '</option>';
+        }
+        echo '</select></div>';
+
+        foreach ($bps as $bp => $bp_label) {
+            $vis = ($bp === 'd') ? '' : ' style="display:none;"';
+            echo '<div class="emg-faq-pad-bp-panel" data-bp="' . esc_attr($bp) . '"' . $vis . '>';
+            echo '<div class="emg-faq-trbl-grid" style="margin-top:6px;">';
             foreach ($sides as $side => $slabel) {
                 $opt = $this->pad_option_for($g, $side, $bp);
-                $val = (string) get_option($opt, '0');
+                $val = $this->get_admin_pad_field_value($g, $side, $bp);
                 echo '<label>' . esc_html($slabel);
                 echo '<input type="number" class="widefat" min="0" max="120" name="' . esc_attr($opt) . '" value="' . esc_attr($val) . '" /></label>';
             }
             echo '</div>';
-            echo '<span class="emg-faq-field-note">' . esc_html__('0 keeps the built-in default for this area.', 'emg-faq') . '</span></div>';
+            if ($bp === 't' || $bp === 'm') {
+                echo '<p class="description" style="margin:8px 0 0;">' . esc_html__('Use 0 on this breakpoint to keep using the desktop padding for that side.', 'emg-faq') . '</p>';
+            }
+            echo '</div>';
         }
+        echo '</div>';
     }
 
     public function render_settings_page()
@@ -1659,7 +1814,12 @@ class EMG_FAQ_Plugin
         $question_color = (string) get_option(self::OPT_Q_COLOR, '#111827');
         $answer_font_size = (string) get_option(self::OPT_A_FONT_SIZE, '16');
         $answer_color = (string) get_option(self::OPT_A_COLOR, '#374151');
-        $item_border_width = (string) get_option(self::OPT_ITEM_BORDER_WIDTH, '1');
+        $saved_ibw = get_option(self::OPT_ITEM_BORDER_WIDTH, false);
+        if ($saved_ibw === false || $saved_ibw === null) {
+            $item_border_width = ($display_mode === 'plain') ? '0' : '1';
+        } else {
+            $item_border_width = (string) $saved_ibw;
+        }
         $item_border_color = (string) get_option(self::OPT_ITEM_BORDER_COLOR, '#dddddd');
         $item_border_radius = (string) get_option(self::OPT_ITEM_BORDER_RADIUS, '8');
         $item_border_sides = get_option(self::OPT_ITEM_BORDER_SIDES, array('top', 'right', 'bottom', 'left'));
@@ -1670,10 +1830,6 @@ class EMG_FAQ_Plugin
         $open_first = (string) get_option(self::OPT_OPEN_FIRST, '0');
         $multiple_open = (string) get_option(self::OPT_MULTIPLE_OPEN, '0');
         $anim_ms = (string) get_option(self::OPT_ANIM_MS, '300');
-        $icon_position = (string) get_option(self::OPT_ICON_POSITION, 'right');
-        $icon_size = (string) get_option(self::OPT_ICON_SIZE, '0');
-        $icon_color = (string) get_option(self::OPT_ICON_COLOR, '');
-        $icon_color_open = (string) get_option(self::OPT_ICON_COLOR_OPEN, '');
         $heading_weight = (string) get_option(self::OPT_HEADING_WEIGHT, '0');
         $heading_size_t = (string) get_option(self::OPT_HEADING_SIZE_T, '0');
         $heading_size_m = (string) get_option(self::OPT_HEADING_SIZE_M, '0');
@@ -1707,22 +1863,57 @@ class EMG_FAQ_Plugin
                 .emg-faq-style-section {
                     border: 1px solid #c3c4c7;
                     background: #fff;
-                    padding: 18px 20px;
-                    margin: 0 0 20px;
+                    padding: 0;
+                    margin: 0 0 16px;
                     box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
                     border-radius: 2px;
                 }
 
-                .emg-faq-style-section>h3 {
-                    margin: 0 0 12px;
-                    padding: 0 0 12px;
-                    border-bottom: 1px solid #dcdcde;
+                .emg-faq-style-section>summary {
+                    list-style: none;
+                    cursor: pointer;
+                    padding: 12px 16px;
+                    margin: 0;
                     font-size: 14px;
                     font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    user-select: none;
+                    background: #f6f7f7;
                 }
 
-                .emg-faq-style-section>p.description {
+                .emg-faq-style-section>summary::-webkit-details-marker {
+                    display: none;
+                }
+
+                .emg-faq-style-section>summary::marker {
+                    content: '';
+                }
+
+                .emg-faq-style-section>summary::before {
+                    content: '\203A';
+                    font-size: 18px;
+                    line-height: 1;
+                    font-weight: bold;
+                    display: inline-block;
+                    transition: transform .15s ease;
+                }
+
+                .emg-faq-style-section[open]>summary::before {
+                    transform: rotate(90deg);
+                }
+
+                .emg-faq-style-section-inner {
+                    padding: 18px 20px;
+                    border-top: 1px solid #dcdcde;
+                }
+
+                .emg-faq-style-section-inner>p.description:first-child {
                     margin-top: 0;
+                }
+
+                .emg-faq-style-section-inner>p.description {
                     margin-bottom: 16px;
                 }
 
@@ -1747,6 +1938,42 @@ class EMG_FAQ_Plugin
                     font-size: 12px;
                     color: #646970;
                     line-height: 1.45;
+                }
+
+                .emg-faq-pad-section {
+                    margin-bottom: 20px;
+                    border: 1px solid #c3c4c7;
+                    border-radius: 6px;
+                    padding: 14px 16px 16px;
+                    background: #fff;
+                }
+
+                .emg-faq-pad-section--c {
+                    border-left: 4px solid #2271b1;
+                }
+
+                .emg-faq-pad-section--q {
+                    border-left: 4px solid #1d8f5c;
+                }
+
+                .emg-faq-pad-section--a {
+                    border-left: 4px solid #b7791f;
+                }
+
+                .emg-faq-pad-head {
+                    font-size: 15px;
+                    font-weight: 600;
+                    margin: 0 0 8px;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #dcdcde;
+                    line-height: 1.35;
+                    color: #1d2327;
+                }
+
+                .emg-faq-pad-hint {
+                    margin: -4px 0 12px !important;
+                    font-size: 12px;
+                    color: #646970;
                 }
 
                 .emg-faq-tri-grid,
@@ -1815,7 +2042,8 @@ class EMG_FAQ_Plugin
                 <div id="emg-faq-tab-general" class="emg-faq-tab-panel is-active">
                     <h2><?php esc_html_e('FAQ Items', 'emg-faq'); ?></h2>
                     <p>Each FAQ has its own Question and Answer fields. HTML is allowed in both fields (like <code>h1-h6</code>,
-                        <code>p</code>, <code>ul</code>, <code>li</code>).</p>
+                        <code>p</code>, <code>ul</code>, <code>li</code>).
+                    </p>
                     <div id="emg-faq-items-list">
                         <?php if (empty($default_faq)): ?>
                             <div class="emg-faq-admin-item"
@@ -1859,23 +2087,24 @@ class EMG_FAQ_Plugin
                     </div>
                     <p><button type="button" id="emg-faq-add-item" class="button button-secondary">+ Add FAQ</button></p>
                     <script type="text/template" id="emg-faq-item-template">
-                            <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
-                                <p style="margin:0 0 8px;">
-                                    <label><strong>Question</strong></label><br />
-                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
-                                </p>
-                                <p style="margin:0 0 8px;">
-                                    <label><strong>Answer</strong></label><br />
-                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
-                                </p>
-                                <button type="button" class="button emg-faq-remove-item">Remove</button>
-                            </div>
-                        </script>
+                                                                    <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
+                                                                        <p style="margin:0 0 8px;">
+                                                                            <label><strong>Question</strong></label><br />
+                                                                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
+                                                                        </p>
+                                                                        <p style="margin:0 0 8px;">
+                                                                            <label><strong>Answer</strong></label><br />
+                                                                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
+                                                                        </p>
+                                                                        <button type="button" class="button emg-faq-remove-item">Remove</button>
+                                                                    </div>
+                                                                </script>
 
                     <h2 style="margin-top:24px;"><?php esc_html_e('FAQ Wrapper (Optional)', 'emg-faq'); ?></h2>
                     <p><?php esc_html_e('Use', 'emg-faq'); ?> <code>{{faq_items}}</code>, <code>{{faq_content}}</code>,
                         <?php esc_html_e('or', 'emg-faq'); ?> <code>{{faq}}</code>
-                        <?php esc_html_e('where the FAQ block should appear.', 'emg-faq'); ?></p>
+                        <?php esc_html_e('where the FAQ block should appear.', 'emg-faq'); ?>
+                    </p>
                     <textarea name="<?php echo esc_attr(self::OPT_WRAPPER_TEMPLATE); ?>" rows="8"
                         style="width:100%;"><?php echo esc_textarea($wrapper_template); ?></textarea>
                 </div>
@@ -1885,295 +2114,314 @@ class EMG_FAQ_Plugin
                         <?php esc_html_e('Optional fields: use 0 or empty to keep the plugin’s original default look.', 'emg-faq'); ?>
                     </p>
 
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Layout', 'emg-faq'); ?></h3>
-                        <p class="description">
-                            <?php esc_html_e('One column by default; enable two columns for wide screens (stacks on tablet/mobile). Column heights stay independent (no equal-height stretch).', 'emg-faq'); ?>
-                        </p>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('View mode', 'emg-faq'); ?></span>
-                            <select id="emg-faq-display-mode" class="widefat" style="max-width:320px;"
-                                name="<?php echo esc_attr(self::OPT_DISPLAY_MODE); ?>">
-                                <option value="accordion" <?php selected($display_mode, 'accordion'); ?>>
-                                    <?php esc_html_e('Accordion', 'emg-faq'); ?></option>
-                                <option value="plain" <?php selected($display_mode, 'plain'); ?>>
-                                    <?php esc_html_e('Plain (Q & A)', 'emg-faq'); ?></option>
-                            </select>
-                        </div>
-                        <div class="emg-faq-field-row">
-                            <label>
-                                <input type="hidden" name="<?php echo esc_attr(self::OPT_TWO_COLUMN_LAYOUT); ?>" value="0" />
-                                <input type="checkbox" id="emg-faq-two-column"
-                                    name="<?php echo esc_attr(self::OPT_TWO_COLUMN_LAYOUT); ?>" value="1" <?php checked($two_column_layout, '1'); ?> />
-                                <?php esc_html_e('Two-column layout (optional)', 'emg-faq'); ?>
-                            </label>
-                        </div>
-                        <div id="emg-faq-column-gap-wrap" class="emg-faq-field-row"
-                            style="<?php echo esc_attr($two_column_layout === '1' ? '' : 'display:none;'); ?>">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Column gap', 'emg-faq'); ?></span>
-                            <input type="number" class="small-text" min="0" max="80"
-                                name="<?php echo esc_attr(self::OPT_COLUMN_GAP); ?>"
-                                value="<?php echo esc_attr($column_gap); ?>" placeholder="20" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default: 20px between columns when left at 0.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Item gap', 'emg-faq'); ?></span>
-                            <input type="number" class="small-text" min="0" max="64"
-                                name="<?php echo esc_attr(self::OPT_ITEM_GAP); ?>"
-                                value="<?php echo esc_attr($item_gap); ?>" placeholder="10" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Controls spacing between FAQ items (same as row gap). Default: 10px when left at 0.', 'emg-faq'); ?></span>
-                        </div>
-                    </div>
-
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Typography', 'emg-faq'); ?></h3>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Question font size', 'emg-faq'); ?></span>
-                            <div class="emg-faq-tri-grid">
-                                <label><?php esc_html_e('Mobile (px)', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="72" placeholder="16"
-                                        name="<?php echo esc_attr(self::OPT_HEADING_SIZE_M); ?>"
-                                        value="<?php echo esc_attr($heading_size_m); ?>" />
-                                </label>
-                                <label><?php esc_html_e('Tablet (px)', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="72" placeholder="16"
-                                        name="<?php echo esc_attr(self::OPT_HEADING_SIZE_T); ?>"
-                                        value="<?php echo esc_attr($heading_size_t); ?>" />
-                                </label>
-                                <label><?php esc_html_e('Desktop (px)', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="8" max="72" placeholder="16"
-                                        name="<?php echo esc_attr(self::OPT_Q_FONT_SIZE); ?>"
-                                        value="<?php echo esc_attr($question_font_size); ?>" />
-                                </label>
-                            </div>
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default: 16px. Use 0 on tablet/mobile to keep desktop size at that breakpoint.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Answer font size', 'emg-faq'); ?></span>
-                            <div class="emg-faq-tri-grid">
-                                <label><?php esc_html_e('Mobile (px)', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="72" placeholder="16"
-                                        name="<?php echo esc_attr(self::OPT_CONTENT_FS_M); ?>"
-                                        value="<?php echo esc_attr($content_fs_m); ?>" />
-                                </label>
-                                <label><?php esc_html_e('Tablet (px)', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="72" placeholder="16"
-                                        name="<?php echo esc_attr(self::OPT_CONTENT_FS_T); ?>"
-                                        value="<?php echo esc_attr($content_fs_t); ?>" />
-                                </label>
-                                <label><?php esc_html_e('Desktop (px)', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="8" max="72" placeholder="16"
-                                        name="<?php echo esc_attr(self::OPT_A_FONT_SIZE); ?>"
-                                        value="<?php echo esc_attr($answer_font_size); ?>" />
-                                </label>
-                            </div>
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default: 16px. Tablet/mobile 0 = no override at that breakpoint.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Answer line height', 'emg-faq'); ?></span>
-                            <div class="emg-faq-tri-grid">
-                                <label><?php esc_html_e('Mobile', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="3" step="0.05" placeholder="1.7"
-                                        name="<?php echo esc_attr(self::OPT_CONTENT_LH_M); ?>"
-                                        value="<?php echo esc_attr($content_lh_m); ?>" />
-                                </label>
-                                <label><?php esc_html_e('Tablet', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="3" step="0.05" placeholder="1.7"
-                                        name="<?php echo esc_attr(self::OPT_CONTENT_LH_T); ?>"
-                                        value="<?php echo esc_attr($content_lh_t); ?>" />
-                                </label>
-                                <label><?php esc_html_e('Desktop', 'emg-faq'); ?>
-                                    <input type="number" class="widefat" min="0" max="3" step="0.05" placeholder="1.7"
-                                        name="<?php echo esc_attr(self::OPT_CONTENT_LH); ?>"
-                                        value="<?php echo esc_attr($content_lh); ?>" />
-                                </label>
-                            </div>
-                            <span class="emg-faq-field-note"><?php esc_html_e('Unitless multiplier (e.g. 1.7). Default ≈ 1.7. Use 0 to keep the built-in default.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Font weight (question / title)', 'emg-faq'); ?></span>
-                            <select class="widefat" style="max-width:320px;" name="<?php echo esc_attr(self::OPT_HEADING_WEIGHT); ?>">
-                                <option value="0" <?php selected($heading_weight, '0'); ?>>
-                                    <?php esc_html_e('Default (700)', 'emg-faq'); ?></option>
-                                <?php foreach (array(100, 200, 300, 400, 500, 600, 700, 800, 900) as $w): ?>
-                                    <option value="<?php echo esc_attr((string) $w); ?>" <?php selected($heading_weight, (string) $w); ?>><?php echo esc_html((string) $w); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <span class="emg-faq-field-note"><?php esc_html_e('Applies to section title and question text.', 'emg-faq'); ?></span>
-                        </div>
-                    </div>
-
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Colors', 'emg-faq'); ?></h3>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Question color', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($question_color)); ?>"
-                                name="<?php echo esc_attr(self::OPT_Q_COLOR); ?>"
-                                value="<?php echo esc_attr($question_color); ?>" placeholder="#111827" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('HEX, rgb(), or rgba(). WordPress color picker appears for hex; use the field for transparency.', 'emg-faq'); ?>
-                                <?php esc_html_e('Default:', 'emg-faq'); ?> #111827</span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Answer color', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($answer_color)); ?>"
-                                name="<?php echo esc_attr(self::OPT_A_COLOR); ?>"
-                                value="<?php echo esc_attr($answer_color); ?>" placeholder="#374151" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default:', 'emg-faq'); ?> #374151</span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Container background', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($container_bg)); ?>"
-                                name="<?php echo esc_attr(self::OPT_CONTAINER_BG); ?>"
-                                value="<?php echo esc_attr($container_bg); ?>" placeholder="#ffffff" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Optional. Empty = transparent default.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Item background', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($item_bg)); ?>"
-                                name="<?php echo esc_attr(self::OPT_ITEM_BG); ?>"
-                                value="<?php echo esc_attr($item_bg); ?>" placeholder="#ffffff" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Optional. Applies to each FAQ card.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Item background when open', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($item_bg_open)); ?>"
-                                name="<?php echo esc_attr(self::OPT_ITEM_BG_OPEN); ?>"
-                                value="<?php echo esc_attr($item_bg_open); ?>" placeholder="rgba(0,0,0,0.04)" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Optional. Highlights the expanded row.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Question hover background', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($q_hover_bg)); ?>"
-                                name="<?php echo esc_attr(self::OPT_Q_HOVER_BG); ?>"
-                                value="<?php echo esc_attr($q_hover_bg); ?>" placeholder="#fafafa" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Optional. Default hover is a light gray if unset.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Border color', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($item_border_color)); ?>"
-                                name="<?php echo esc_attr(self::OPT_ITEM_BORDER_COLOR); ?>"
-                                value="<?php echo esc_attr($item_border_color); ?>" placeholder="#dddddd" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default:', 'emg-faq'); ?> #dddddd</span>
-                        </div>
-                    </div>
-
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Padding', 'emg-faq'); ?></h3>
-                        <p class="description"><?php esc_html_e('Three areas: outer container, question row, and answer panel. Each supports Top / Right / Bottom / Left per breakpoint.', 'emg-faq'); ?></p>
-                        <?php
-                        $this->render_admin_trbl_padding_block('c', __('Container padding', 'emg-faq'));
-                        $this->render_admin_trbl_padding_block('q', __('Question padding', 'emg-faq'));
-                        $this->render_admin_trbl_padding_block('a', __('Answer padding', 'emg-faq'));
-                        ?>
-                    </div>
-
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Icon settings', 'emg-faq'); ?></h3>
-                        <div id="emg-faq-icon-style-wrap"
-                            style="<?php echo esc_attr(($display_mode === 'accordion' ? '' : 'display:none;')); ?>">
+                    <details class="emg-faq-style-section" open>
+                        <summary><?php esc_html_e('Layout', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <p class="description">
+                                <?php esc_html_e('One column by default; enable two columns for wide screens (stacks on tablet/mobile). Column heights stay independent (no equal-height stretch).', 'emg-faq'); ?>
+                            </p>
                             <div class="emg-faq-field-row">
-                                <span class="emg-faq-field-label"><?php esc_html_e('Icon type', 'emg-faq'); ?></span>
-                                <select id="emg-faq-icon-style" class="widefat" style="max-width:320px;"
-                                    name="<?php echo esc_attr(self::OPT_ACCORDION_ICON_STYLE); ?>">
-                                    <option value="plusminus" <?php selected($icon_style_ui, 'plusminus'); ?>>
-                                        <?php esc_html_e('Plus / minus (ring, no fill)', 'emg-faq'); ?></option>
-                                    <option value="chevron" <?php selected($icon_style_ui, 'chevron'); ?>>
-                                        <?php esc_html_e('Arrow / chevron (ring, no fill)', 'emg-faq'); ?></option>
+                                <span class="emg-faq-field-label"><?php esc_html_e('View mode', 'emg-faq'); ?></span>
+                                <select id="emg-faq-display-mode" class="widefat" style="max-width:320px;"
+                                    name="<?php echo esc_attr(self::OPT_DISPLAY_MODE); ?>">
+                                    <option value="accordion" <?php selected($display_mode, 'accordion'); ?>>
+                                        <?php esc_html_e('Accordion', 'emg-faq'); ?>
+                                    </option>
+                                    <option value="plain" <?php selected($display_mode, 'plain'); ?>>
+                                        <?php esc_html_e('Plain (Q & A)', 'emg-faq'); ?>
+                                    </option>
                                 </select>
                             </div>
+                            <div class="emg-faq-field-row">
+                                <label>
+                                    <input type="hidden" name="<?php echo esc_attr(self::OPT_TWO_COLUMN_LAYOUT); ?>"
+                                        value="0" />
+                                    <input type="checkbox" id="emg-faq-two-column"
+                                        name="<?php echo esc_attr(self::OPT_TWO_COLUMN_LAYOUT); ?>" value="1" <?php checked($two_column_layout, '1'); ?> />
+                                    <?php esc_html_e('Two-column layout (optional)', 'emg-faq'); ?>
+                                </label>
+                            </div>
+                            <div id="emg-faq-column-gap-wrap" class="emg-faq-field-row"
+                                style="<?php echo esc_attr($two_column_layout === '1' ? '' : 'display:none;'); ?>">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Column gap', 'emg-faq'); ?></span>
+                                <input type="number" class="small-text" min="0" max="80"
+                                    name="<?php echo esc_attr(self::OPT_COLUMN_GAP); ?>"
+                                    value="<?php echo esc_attr($column_gap); ?>" placeholder="20" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Default: 20px between columns when left at 0.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Item gap', 'emg-faq'); ?></span>
+                                <input type="number" class="small-text" min="0" max="64"
+                                    name="<?php echo esc_attr(self::OPT_ITEM_GAP); ?>"
+                                    value="<?php echo esc_attr($item_gap); ?>" placeholder="10" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Controls spacing between FAQ items (same as row gap). Default: 10px when left at 0.', 'emg-faq'); ?></span>
+                            </div>
                         </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Icon position', 'emg-faq'); ?></span>
-                            <select class="widefat" style="max-width:320px;" name="<?php echo esc_attr(self::OPT_ICON_POSITION); ?>">
-                                <option value="right" <?php selected($icon_position, 'right'); ?>>
-                                    <?php esc_html_e('Right', 'emg-faq'); ?></option>
-                                <option value="left" <?php selected($icon_position, 'left'); ?>>
-                                    <?php esc_html_e('Left', 'emg-faq'); ?></option>
-                            </select>
-                        </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Icon size', 'emg-faq'); ?></span>
-                            <input type="number" class="small-text" min="0" max="48"
-                                name="<?php echo esc_attr(self::OPT_ICON_SIZE); ?>"
-                                value="<?php echo esc_attr($icon_size); ?>" placeholder="28" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Pixels. 0 = plugin default (28px icon box).', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Icon color', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($icon_color)); ?>"
-                                name="<?php echo esc_attr(self::OPT_ICON_COLOR); ?>"
-                                value="<?php echo esc_attr($icon_color); ?>" placeholder="#000000" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Optional. Controls stroke / plus-minus / chevron color.', 'emg-faq'); ?></span>
-                        </div>
-                        <div class="emg-faq-field-row emg-faq-color-stack">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Icon color when open', 'emg-faq'); ?></span>
-                            <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($icon_color_open)); ?>"
-                                name="<?php echo esc_attr(self::OPT_ICON_COLOR_OPEN); ?>"
-                                value="<?php echo esc_attr($icon_color_open); ?>" placeholder="#ffffff" autocomplete="off" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Optional. When empty, open state uses the same color as closed.', 'emg-faq'); ?></span>
-                        </div>
-                    </div>
+                    </details>
 
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Accordion style & motion', 'emg-faq'); ?></h3>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Item border width (px)', 'emg-faq'); ?></span>
-                            <input type="number" class="small-text" min="0" max="20"
-                                name="<?php echo esc_attr(self::OPT_ITEM_BORDER_WIDTH); ?>"
-                                value="<?php echo esc_attr($item_border_width); ?>" placeholder="1" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default: 1px.', 'emg-faq'); ?></span>
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Typography', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <div class="emg-faq-field-row">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Question font size', 'emg-faq'); ?></span>
+                                <div class="emg-faq-tri-grid">
+                                    <label><?php esc_html_e('Mobile (px)', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="72" placeholder="16"
+                                            name="<?php echo esc_attr(self::OPT_HEADING_SIZE_M); ?>"
+                                            value="<?php echo esc_attr($heading_size_m); ?>" />
+                                    </label>
+                                    <label><?php esc_html_e('Tablet (px)', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="72" placeholder="16"
+                                            name="<?php echo esc_attr(self::OPT_HEADING_SIZE_T); ?>"
+                                            value="<?php echo esc_attr($heading_size_t); ?>" />
+                                    </label>
+                                    <label><?php esc_html_e('Desktop (px)', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="8" max="72" placeholder="16"
+                                            name="<?php echo esc_attr(self::OPT_Q_FONT_SIZE); ?>"
+                                            value="<?php echo esc_attr($question_font_size); ?>" />
+                                    </label>
+                                </div>
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Default: 16px. Use 0 on tablet/mobile to keep desktop size at that breakpoint.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Answer font size', 'emg-faq'); ?></span>
+                                <div class="emg-faq-tri-grid">
+                                    <label><?php esc_html_e('Mobile (px)', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="72" placeholder="16"
+                                            name="<?php echo esc_attr(self::OPT_CONTENT_FS_M); ?>"
+                                            value="<?php echo esc_attr($content_fs_m); ?>" />
+                                    </label>
+                                    <label><?php esc_html_e('Tablet (px)', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="72" placeholder="16"
+                                            name="<?php echo esc_attr(self::OPT_CONTENT_FS_T); ?>"
+                                            value="<?php echo esc_attr($content_fs_t); ?>" />
+                                    </label>
+                                    <label><?php esc_html_e('Desktop (px)', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="8" max="72" placeholder="16"
+                                            name="<?php echo esc_attr(self::OPT_A_FONT_SIZE); ?>"
+                                            value="<?php echo esc_attr($answer_font_size); ?>" />
+                                    </label>
+                                </div>
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Default: 16px. Tablet/mobile 0 = no override at that breakpoint.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Answer line height', 'emg-faq'); ?></span>
+                                <div class="emg-faq-tri-grid">
+                                    <label><?php esc_html_e('Mobile', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="3" step="0.05" placeholder="1.7"
+                                            name="<?php echo esc_attr(self::OPT_CONTENT_LH_M); ?>"
+                                            value="<?php echo esc_attr($content_lh_m); ?>" />
+                                    </label>
+                                    <label><?php esc_html_e('Tablet', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="3" step="0.05" placeholder="1.7"
+                                            name="<?php echo esc_attr(self::OPT_CONTENT_LH_T); ?>"
+                                            value="<?php echo esc_attr($content_lh_t); ?>" />
+                                    </label>
+                                    <label><?php esc_html_e('Desktop', 'emg-faq'); ?>
+                                        <input type="number" class="widefat" min="0" max="3" step="0.05" placeholder="1.7"
+                                            name="<?php echo esc_attr(self::OPT_CONTENT_LH); ?>"
+                                            value="<?php echo esc_attr($content_lh); ?>" />
+                                    </label>
+                                </div>
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Unitless multiplier (e.g. 1.7). Default ≈ 1.7. Use 0 to keep the built-in default.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row">
+                                <span
+                                    class="emg-faq-field-label"><?php esc_html_e('Font weight (question / title)', 'emg-faq'); ?></span>
+                                <select class="widefat" style="max-width:320px;"
+                                    name="<?php echo esc_attr(self::OPT_HEADING_WEIGHT); ?>">
+                                    <option value="0" <?php selected($heading_weight, '0'); ?>>
+                                        <?php esc_html_e('Default (700)', 'emg-faq'); ?>
+                                    </option>
+                                    <?php foreach (array(100, 200, 300, 400, 500, 600, 700, 800, 900) as $w): ?>
+                                        <option value="<?php echo esc_attr((string) $w); ?>" <?php selected($heading_weight, (string) $w); ?>><?php echo esc_html((string) $w); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Applies to section title and question text.', 'emg-faq'); ?></span>
+                            </div>
                         </div>
-                        <div class="emg-faq-field-row">
-                            <span class="emg-faq-field-label"><?php esc_html_e('Item border radius (px)', 'emg-faq'); ?></span>
-                            <input type="number" class="small-text" min="0" max="80"
-                                name="<?php echo esc_attr(self::OPT_ITEM_BORDER_RADIUS); ?>"
-                                value="<?php echo esc_attr($item_border_radius); ?>" placeholder="8" />
-                            <span class="emg-faq-field-note"><?php esc_html_e('Default: 8px.', 'emg-faq'); ?></span>
-                        </div>
-                        <p><?php esc_html_e('Border sides:', 'emg-faq'); ?>
-                            <label style="margin-left:8px;margin-right:10px;"><input type="checkbox"
-                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="top" <?php checked(in_array('top', $item_border_sides, true)); ?> />
-                                <?php esc_html_e('Top', 'emg-faq'); ?></label>
-                            <label style="margin-right:10px;"><input type="checkbox"
-                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="right" <?php checked(in_array('right', $item_border_sides, true)); ?> />
-                                <?php esc_html_e('Right', 'emg-faq'); ?></label>
-                            <label style="margin-right:10px;"><input type="checkbox"
-                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="bottom" <?php checked(in_array('bottom', $item_border_sides, true)); ?> />
-                                <?php esc_html_e('Bottom', 'emg-faq'); ?></label>
-                            <label style="margin-right:10px;"><input type="checkbox"
-                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="left" <?php checked(in_array('left', $item_border_sides, true)); ?> />
-                                <?php esc_html_e('Left', 'emg-faq'); ?></label>
-                        </p>
-                        <p>
-                            <label>
-                                <input type="hidden" name="<?php echo esc_attr(self::OPT_SMOOTH_PANEL_ANIM); ?>" value="0" />
-                                <input type="checkbox" name="<?php echo esc_attr(self::OPT_SMOOTH_PANEL_ANIM); ?>" value="1"
-                                    <?php checked($smooth_panel, '1'); ?> />
-                                <?php esc_html_e('Smooth panel open/close animation', 'emg-faq'); ?>
-                            </label>
-                        </p>
-                        <p>
-                            <label><?php esc_html_e('Transition duration (ms)', 'emg-faq'); ?>
-                                <input type="number" min="100" max="1500" step="10"
-                                    name="<?php echo esc_attr(self::OPT_ANIM_MS); ?>"
-                                    value="<?php echo esc_attr($anim_ms); ?>" />
-                            </label>
-                        </p>
-                    </div>
+                    </details>
 
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Custom CSS', 'emg-faq'); ?></h3>
-                        <p class="description">
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Colors', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Question color', 'emg-faq'); ?></span>
+                                <input type="text"
+                                    class="<?php echo esc_attr($this->admin_color_input_classes($question_color)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_Q_COLOR); ?>"
+                                    value="<?php echo esc_attr($question_color); ?>" placeholder="#111827" autocomplete="off" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('HEX, rgb(), or rgba(). WordPress color picker appears for hex; use the field for transparency.', 'emg-faq'); ?>
+                                    <?php esc_html_e('Default:', 'emg-faq'); ?> #111827</span>
+                            </div>
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Answer color', 'emg-faq'); ?></span>
+                                <input type="text"
+                                    class="<?php echo esc_attr($this->admin_color_input_classes($answer_color)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_A_COLOR); ?>"
+                                    value="<?php echo esc_attr($answer_color); ?>" placeholder="#374151" autocomplete="off" />
+                                <span class="emg-faq-field-note"><?php esc_html_e('Default:', 'emg-faq'); ?> #374151</span>
+                            </div>
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Container background', 'emg-faq'); ?></span>
+                                <input type="text"
+                                    class="<?php echo esc_attr($this->admin_color_input_classes($container_bg)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_CONTAINER_BG); ?>"
+                                    value="<?php echo esc_attr($container_bg); ?>" placeholder="#ffffff" autocomplete="off" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Optional. Empty = transparent default.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Item background', 'emg-faq'); ?></span>
+                                <input type="text" class="<?php echo esc_attr($this->admin_color_input_classes($item_bg)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_ITEM_BG); ?>" value="<?php echo esc_attr($item_bg); ?>"
+                                    placeholder="#ffffff" autocomplete="off" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Optional. Applies to each FAQ card.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span
+                                    class="emg-faq-field-label"><?php esc_html_e('Item background when open', 'emg-faq'); ?></span>
+                                <input type="text"
+                                    class="<?php echo esc_attr($this->admin_color_input_classes($item_bg_open)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_ITEM_BG_OPEN); ?>"
+                                    value="<?php echo esc_attr($item_bg_open); ?>" placeholder="rgba(0,0,0,0.04)"
+                                    autocomplete="off" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Optional. Highlights the expanded row.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span
+                                    class="emg-faq-field-label"><?php esc_html_e('Question hover background', 'emg-faq'); ?></span>
+                                <input type="text"
+                                    class="<?php echo esc_attr($this->admin_color_input_classes($q_hover_bg)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_Q_HOVER_BG); ?>"
+                                    value="<?php echo esc_attr($q_hover_bg); ?>" placeholder="#fafafa" autocomplete="off" />
+                                <span
+                                    class="emg-faq-field-note"><?php esc_html_e('Optional. Default hover is a light gray if unset.', 'emg-faq'); ?></span>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Padding', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <p class="description">
+                                <?php esc_html_e('Container, question row, and answer area. Pick Desktop / Tablet / Mobile from the dropdown, then set Top / Right / Bottom / Left (px). Answer padding applies when an accordion row is open so closed rows stay flush. Plain Q&amp;A defaults to no left/right padding on question and answer until you set values.', 'emg-faq'); ?>
+                            </p>
                             <?php
-                            printf(
-                                esc_html__('Start selectors with %s. Disallowed: @import and script-like syntax.', 'emg-faq'),
-                                '<code>.' . esc_html(self::SCOPE_ROOT_CLASS) . '</code>'
-                            );
+                            $this->render_admin_trbl_padding_block('c', __('Container padding', 'emg-faq'));
+                            $this->render_admin_trbl_padding_block('q', __('Question padding', 'emg-faq'));
+                            $this->render_admin_trbl_padding_block('a', __('Answer padding', 'emg-faq'));
                             ?>
-                        </p>
-                        <textarea name="<?php echo esc_attr(self::OPT_CUSTOM_CSS); ?>" rows="10"
-                            style="width:100%;max-width:920px;font-family:monospace;"><?php echo esc_textarea($custom_css); ?></textarea>
-                    </div>
+                        </div>
+                    </details>
+
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Accordion style & motion', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <div id="emg-faq-icon-style-wrap"
+                                style="<?php echo esc_attr(($display_mode === 'accordion' ? '' : 'display:none;')); ?>">
+                                <div class="emg-faq-field-row">
+                                    <span class="emg-faq-field-label"><?php esc_html_e('Accordion icon', 'emg-faq'); ?></span>
+                                    <select id="emg-faq-icon-style" class="widefat" style="max-width:320px;"
+                                        name="<?php echo esc_attr(self::OPT_ACCORDION_ICON_STYLE); ?>">
+                                        <option value="plusminus" <?php selected($icon_style_ui, 'plusminus'); ?>>
+                                            <?php esc_html_e('Plus / minus', 'emg-faq'); ?>
+                                        </option>
+                                        <option value="chevron" <?php selected($icon_style_ui, 'chevron'); ?>>
+                                            <?php esc_html_e('Arrow / chevron', 'emg-faq'); ?>
+                                        </option>
+                                    </select>
+                                    <span
+                                        class="emg-faq-field-note"><?php esc_html_e('Fixed size and styling on the right; matches question text color.', 'emg-faq'); ?></span>
+                                </div>
+                            </div>
+                            <p class="description">
+                                <?php esc_html_e('Item borders: accordion output uses your width by default (1px if you never saved a value). Plain Q&amp;A output defaults to no border until you set a width above 0. Each FAQ block sets data-emg-faq-mode so both can appear on the same page with correct styling.', 'emg-faq'); ?>
+                            </p>
+                            <div class="emg-faq-field-row">
+                                <span
+                                    class="emg-faq-field-label"><?php esc_html_e('Item border width (px)', 'emg-faq'); ?></span>
+                                <input type="number" class="small-text" min="0" max="20"
+                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_WIDTH); ?>"
+                                    value="<?php echo esc_attr($item_border_width); ?>"
+                                    placeholder="<?php echo esc_attr($display_mode === 'plain' ? '0' : '1'); ?>" />
+                                <span
+                                    class="emg-faq-field-note"><?php echo esc_html($display_mode === 'plain' ? __('Plain default: 0 (no border). Accordion blocks still use 1px until you save a different value.', 'emg-faq') : __('Accordion default: 1px. Set &gt; 0 to show borders on plain Q&amp;A blocks too.', 'emg-faq')); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row">
+                                <span
+                                    class="emg-faq-field-label"><?php esc_html_e('Item border radius (px)', 'emg-faq'); ?></span>
+                                <input type="number" class="small-text" min="0" max="80"
+                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_RADIUS); ?>"
+                                    value="<?php echo esc_attr($item_border_radius); ?>" placeholder="8" />
+                                <span class="emg-faq-field-note"><?php esc_html_e('Default: 8px.', 'emg-faq'); ?></span>
+                            </div>
+                            <div class="emg-faq-field-row emg-faq-color-stack">
+                                <span class="emg-faq-field-label"><?php esc_html_e('Border color', 'emg-faq'); ?></span>
+                                <input type="text"
+                                    class="<?php echo esc_attr($this->admin_color_input_classes($item_border_color)); ?>"
+                                    name="<?php echo esc_attr(self::OPT_ITEM_BORDER_COLOR); ?>"
+                                    value="<?php echo esc_attr($item_border_color); ?>" placeholder="#dddddd"
+                                    autocomplete="off" />
+                                <span class="emg-faq-field-note"><?php esc_html_e('Default:', 'emg-faq'); ?> #dddddd</span>
+                            </div>
+                            <p><?php esc_html_e('Border sides:', 'emg-faq'); ?>
+                                <label style="margin-left:8px;margin-right:10px;"><input type="checkbox"
+                                        name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="top" <?php checked(in_array('top', $item_border_sides, true)); ?> />
+                                    <?php esc_html_e('Top', 'emg-faq'); ?></label>
+                                <label style="margin-right:10px;"><input type="checkbox"
+                                        name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="right" <?php checked(in_array('right', $item_border_sides, true)); ?> />
+                                    <?php esc_html_e('Right', 'emg-faq'); ?></label>
+                                <label style="margin-right:10px;"><input type="checkbox"
+                                        name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="bottom" <?php checked(in_array('bottom', $item_border_sides, true)); ?> />
+                                    <?php esc_html_e('Bottom', 'emg-faq'); ?></label>
+                                <label style="margin-right:10px;"><input type="checkbox"
+                                        name="<?php echo esc_attr(self::OPT_ITEM_BORDER_SIDES); ?>[]" value="left" <?php checked(in_array('left', $item_border_sides, true)); ?> />
+                                    <?php esc_html_e('Left', 'emg-faq'); ?></label>
+                            </p>
+                            <p>
+                                <label>
+                                    <input type="hidden" name="<?php echo esc_attr(self::OPT_SMOOTH_PANEL_ANIM); ?>"
+                                        value="0" />
+                                    <input type="checkbox" name="<?php echo esc_attr(self::OPT_SMOOTH_PANEL_ANIM); ?>" value="1"
+                                        <?php checked($smooth_panel, '1'); ?> />
+                                    <?php esc_html_e('Smooth panel open/close animation', 'emg-faq'); ?>
+                                </label>
+                            </p>
+                            <p>
+                                <label><?php esc_html_e('Transition duration (ms)', 'emg-faq'); ?>
+                                    <input type="number" min="100" max="1500" step="10"
+                                        name="<?php echo esc_attr(self::OPT_ANIM_MS); ?>"
+                                        value="<?php echo esc_attr($anim_ms); ?>" />
+                                </label>
+                            </p>
+                        </div>
+                    </details>
+
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Custom CSS', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <p class="description">
+                                <?php
+                                printf(
+                                    esc_html__('Start selectors with %s. Disallowed: @import and script-like syntax.', 'emg-faq'),
+                                    '<code>.' . esc_html(self::SCOPE_ROOT_CLASS) . '</code>'
+                                );
+                                ?>
+                            </p>
+                            <textarea name="<?php echo esc_attr(self::OPT_CUSTOM_CSS); ?>" rows="10"
+                                style="width:100%;max-width:920px;font-family:monospace;"><?php echo esc_textarea($custom_css); ?></textarea>
+                        </div>
+                    </details>
                 </div>
 
                 <div id="emg-faq-tab-advanced" class="emg-faq-tab-panel">
@@ -2232,59 +2480,65 @@ class EMG_FAQ_Plugin
                 </div>
 
                 <div id="emg-faq-tab-usage" class="emg-faq-tab-panel">
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Overview', 'emg-faq'); ?></h3>
-                        <p><?php esc_html_e('Place the shortcode on any post or page. Assets load only when the shortcode runs, so the rest of the site stays lean.', 'emg-faq'); ?>
-                        </p>
-                        <p><?php esc_html_e('Use the FAQ list from the General tab, or override it with inner content and selectors for a single block.', 'emg-faq'); ?>
-                        </p>
-                    </div>
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Overview', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <p><?php esc_html_e('Place the shortcode on any post or page. Assets load only when the shortcode runs, so the rest of the site stays lean.', 'emg-faq'); ?>
+                            </p>
+                            <p><?php esc_html_e('Use the FAQ list from the General tab, or override it with inner content and selectors for a single block.', 'emg-faq'); ?>
+                            </p>
+                        </div>
+                    </details>
 
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Examples', 'emg-faq'); ?></h3>
-                        <ol class="emg-faq-usage-list" style="margin-left:1.25em;">
-                            <li style="margin-bottom:10px;">
-                                <strong><?php esc_html_e('Basic', 'emg-faq'); ?></strong><br />
-                                <code>[emg_faq]</code>
-                                <button type="button" class="button button-small emg-faq-copy-btn"
-                                    data-clipboard="[emg_faq]"><?php esc_html_e('Copy', 'emg-faq'); ?></button>
-                            </li>
-                            <li style="margin-bottom:10px;">
-                                <strong><?php esc_html_e('With city placeholder', 'emg-faq'); ?></strong><br />
-                                <code>[emg_faq city="Dallas"]</code>
-                                <button type="button" class="button button-small emg-faq-copy-btn"
-                                    data-clipboard='[emg_faq city="Dallas"]'><?php esc_html_e('Copy', 'emg-faq'); ?></button>
-                            </li>
-                            <li style="margin-bottom:10px;">
-                                <strong><?php esc_html_e('Mode', 'emg-faq'); ?></strong><br />
-                                <code>[emg_faq mode="plain"]</code>
-                                <button type="button" class="button button-small emg-faq-copy-btn"
-                                    data-clipboard='[emg_faq mode="plain"]'><?php esc_html_e('Copy plain', 'emg-faq'); ?></button>
-                                &nbsp;
-                                <code>[emg_faq mode="accordion"]</code>
-                                <button type="button" class="button button-small emg-faq-copy-btn"
-                                    data-clipboard='[emg_faq mode="accordion"]'><?php esc_html_e('Copy accordion', 'emg-faq'); ?></button>
-                            </li>
-                            <li>
-                                <strong><?php esc_html_e('Custom content (selectors)', 'emg-faq'); ?></strong><br />
-                                <code>[emg_faq city="Dallas" question_selector=".faq-q" answer_selector=".faq-a"]</code>
-                                <button type="button" class="button button-small emg-faq-copy-btn"
-                                    data-clipboard='[emg_faq city="Dallas" question_selector=".faq-q" answer_selector=".faq-a"]'><?php esc_html_e('Copy', 'emg-faq'); ?></button>
-                            </li>
-                        </ol>
-                    </div>
+                    <details class="emg-faq-style-section" open>
+                        <summary><?php esc_html_e('Examples', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <ol class="emg-faq-usage-list" style="margin-left:1.25em;">
+                                <li style="margin-bottom:10px;">
+                                    <strong><?php esc_html_e('Basic', 'emg-faq'); ?></strong><br />
+                                    <code>[emg_faq]</code>
+                                    <button type="button" class="button button-small emg-faq-copy-btn"
+                                        data-clipboard="[emg_faq]"><?php esc_html_e('Copy', 'emg-faq'); ?></button>
+                                </li>
+                                <li style="margin-bottom:10px;">
+                                    <strong><?php esc_html_e('With city placeholder', 'emg-faq'); ?></strong><br />
+                                    <code>[emg_faq city="Dallas"]</code>
+                                    <button type="button" class="button button-small emg-faq-copy-btn"
+                                        data-clipboard='[emg_faq city="Dallas"]'><?php esc_html_e('Copy', 'emg-faq'); ?></button>
+                                </li>
+                                <li style="margin-bottom:10px;">
+                                    <strong><?php esc_html_e('Mode', 'emg-faq'); ?></strong><br />
+                                    <code>[emg_faq mode="plain"]</code>
+                                    <button type="button" class="button button-small emg-faq-copy-btn"
+                                        data-clipboard='[emg_faq mode="plain"]'><?php esc_html_e('Copy plain', 'emg-faq'); ?></button>
+                                    &nbsp;
+                                    <code>[emg_faq mode="accordion"]</code>
+                                    <button type="button" class="button button-small emg-faq-copy-btn"
+                                        data-clipboard='[emg_faq mode="accordion"]'><?php esc_html_e('Copy accordion', 'emg-faq'); ?></button>
+                                </li>
+                                <li>
+                                    <strong><?php esc_html_e('Custom content (selectors)', 'emg-faq'); ?></strong><br />
+                                    <code>[emg_faq city="Dallas" question_selector=".faq-q" answer_selector=".faq-a"]</code>
+                                    <button type="button" class="button button-small emg-faq-copy-btn"
+                                        data-clipboard='[emg_faq city="Dallas" question_selector=".faq-q" answer_selector=".faq-a"]'><?php esc_html_e('Copy', 'emg-faq'); ?></button>
+                                </li>
+                            </ol>
+                        </div>
+                    </details>
 
-                    <div class="emg-faq-style-section">
-                        <h3><?php esc_html_e('Custom content & schema', 'emg-faq'); ?></h3>
-                        <ul style="margin-left:1.25em;">
-                            <li><?php esc_html_e('When you use inner HTML with question/answer selectors (or tags), that block replaces the global FAQ list for that shortcode only.', 'emg-faq'); ?>
-                            </li>
-                            <li><?php esc_html_e('Schema (JSON-LD) is off for enclosing content unless you add generate_schema="yes" (or 1/true/on). Then the plugin can build FAQPage from the parsed Q&A, respecting your SEO / Schema settings.', 'emg-faq'); ?>
-                            </li>
-                            <li><?php esc_html_e('strip_tags="true" or the stripe flag (selector mode) forces plain text for display and schema; omit or set strip_tags="false" to keep allowed HTML in answers.', 'emg-faq'); ?>
-                            </li>
-                        </ul>
-                    </div>
+                    <details class="emg-faq-style-section">
+                        <summary><?php esc_html_e('Custom content & schema', 'emg-faq'); ?></summary>
+                        <div class="emg-faq-style-section-inner">
+                            <ul style="margin-left:1.25em;">
+                                <li><?php esc_html_e('When you use inner HTML with question/answer selectors (or tags), that block replaces the global FAQ list for that shortcode only.', 'emg-faq'); ?>
+                                </li>
+                                <li><?php esc_html_e('Schema (JSON-LD) is off for enclosing content unless you add generate_schema="yes" (or 1/true/on). Then the plugin can build FAQPage from the parsed Q&A, respecting your SEO / Schema settings.', 'emg-faq'); ?>
+                                </li>
+                                <li><?php esc_html_e('strip_tags="true" or the stripe flag (selector mode) forces plain text for display and schema; omit or set strip_tags="false" to keep allowed HTML in answers.', 'emg-faq'); ?>
+                                </li>
+                            </ul>
+                        </div>
+                    </details>
 
                 </div>
 
@@ -2496,7 +2750,7 @@ class EMG_FAQ_Plugin
         </div>
         <?php
         $this->queue_schema($schema_raw);
-        return $this->wrap_faq_root($this->apply_wrapper_template(ob_get_clean()));
+        return $this->wrap_faq_root($this->apply_wrapper_template(ob_get_clean()), 'freeform');
     }
 
     /**
@@ -2930,9 +3184,17 @@ class EMG_FAQ_Plugin
      * @param string $inner_html
      * @return string
      */
-    private function wrap_faq_root($inner_html)
+    /**
+     * @param string $inner_html
+     * @param string $mode accordion | plain | freeform (controls data-emg-faq-mode for scoped CSS)
+     */
+    private function wrap_faq_root($inner_html, $mode = 'accordion')
     {
         $inner_html = (string) $inner_html;
+        $mode = is_string($mode) ? strtolower(trim($mode)) : 'accordion';
+        if (!in_array($mode, array('accordion', 'plain', 'freeform'), true)) {
+            $mode = 'accordion';
+        }
         $anim = (int) get_option(self::OPT_ANIM_MS, 300);
         if ($anim < 100) {
             $anim = 100;
@@ -2944,6 +3206,7 @@ class EMG_FAQ_Plugin
         $anim_attr = $smooth ? $anim : 0;
         $attrs = array(
             'class' => self::SCOPE_ROOT_CLASS,
+            'data-emg-faq-mode' => $mode,
             'data-emg-faq-multiple' => get_option(self::OPT_MULTIPLE_OPEN, '0') === '1' ? '1' : '0',
             'data-emg-faq-anim' => (string) $anim_attr,
         );
@@ -2958,9 +3221,8 @@ class EMG_FAQ_Plugin
      * @param array<int, array<string, mixed>> $items
      * @param bool   $is_plain
      * @param bool   $open_first_in_list When true, first accordion row starts expanded.
-     * @param bool   $icon_left
      */
-    private function render_faq_item_rows($items, $is_plain, $open_first_in_list = false, $icon_left = false)
+    private function render_faq_item_rows($items, $is_plain, $open_first_in_list = false)
     {
         $html = '';
         $icon_st = $this->sanitize_icon_style((string) get_option(self::OPT_ACCORDION_ICON_STYLE, 'plusminus'));
@@ -2984,28 +3246,17 @@ class EMG_FAQ_Plugin
                 $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
                 $html .= '</div></div>';
             } elseif ($use_line_icon) {
-                $btn = 'emg-faq-question emg-faq-question--arrow';
-                if ($icon_left) {
-                    $btn .= ' emg-faq-question--icon-left';
-                }
+                $btn = 'emg-faq-question emg-faq-question-arrow';
                 $html .= '<div class="' . esc_attr($acc_class) . '">';
                 $html .= '<button type="button" class="' . esc_attr($btn) . '" aria-expanded="' . esc_attr($aria_exp) . '">';
-                if ($icon_left) {
-                    $html .= '<span class="emg-faq-arrow-icon" aria-hidden="true"></span>';
-                    $html .= '<span class="emg-faq-q-inline">' . $q_esc . '</span>';
-                } else {
-                    $html .= '<span class="emg-faq-q-inline">' . $q_esc . '</span>';
-                    $html .= '<span class="emg-faq-arrow-icon" aria-hidden="true"></span>';
-                }
+                $html .= '<span class="emg-faq-q-inline">' . $q_esc . '</span>';
+                $html .= '<span class="emg-faq-arrow-icon" aria-hidden="true"></span>';
                 $html .= '</button>';
                 $html .= '<div' . $panel_attrs . '>';
                 $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
                 $html .= '</div></div>';
             } else {
                 $btn = 'emg-faq-question';
-                if ($icon_left) {
-                    $btn .= ' emg-faq-question--icon-left';
-                }
                 $html .= '<div class="' . esc_attr($acc_class) . '">';
                 $html .= '<button type="button" class="' . esc_attr($btn) . '" aria-expanded="' . esc_attr($aria_exp) . '">';
                 $html .= $q_esc;
@@ -3038,7 +3289,6 @@ class EMG_FAQ_Plugin
         $count = count($items);
         $use_two_columns = $two_col_on && $count >= 2;
         $open_first = get_option(self::OPT_OPEN_FIRST, '0') === '1';
-        $icon_left = $this->sanitize_icon_position((string) get_option(self::OPT_ICON_POSITION, 'right')) === 'left';
 
         ob_start();
         if ($use_two_columns) {
@@ -3056,12 +3306,12 @@ class EMG_FAQ_Plugin
                 <div class="emg-faq-cols">
                     <div class="emg-faq-col-left">
                         <div class="<?php echo esc_attr($wrapper_class); ?>">
-                            <?php echo $this->render_faq_item_rows($left_items, $is_plain, $open_first, $icon_left); ?>
+                            <?php echo $this->render_faq_item_rows($left_items, $is_plain, $open_first); ?>
                         </div>
                     </div>
                     <div class="emg-faq-col-right">
                         <div class="<?php echo esc_attr($wrapper_class); ?>">
-                            <?php echo $this->render_faq_item_rows($right_items, $is_plain, false, $icon_left); ?>
+                            <?php echo $this->render_faq_item_rows($right_items, $is_plain, false); ?>
                         </div>
                     </div>
                 </div>
@@ -3073,7 +3323,7 @@ class EMG_FAQ_Plugin
                 <?php if ($title !== ''): ?>
                     <h2 class="emg-faq-title"><?php echo esc_html($title); ?></h2>
                 <?php endif; ?>
-                <?php echo $this->render_faq_item_rows($items, $is_plain, $open_first, $icon_left); ?>
+                <?php echo $this->render_faq_item_rows($items, $is_plain, $open_first); ?>
             </div>
             <?php
         }
@@ -3083,7 +3333,7 @@ class EMG_FAQ_Plugin
 
         $this->queue_schema($schema_raw);
 
-        return $this->wrap_faq_root($this->apply_wrapper_template(ob_get_clean()));
+        return $this->wrap_faq_root($this->apply_wrapper_template(ob_get_clean()), $display_mode);
     }
 
     private function queue_schema($schema_raw)
