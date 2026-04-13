@@ -302,46 +302,45 @@ class EMG_FAQ_Plugin
 }
 .emg-faq-box .emg-faq-arrow-icon {
 	display: block;
-	font-size: 24px;
-	width: 1em;
-	height: 1em;
-	min-width: 1em;
+	height: 24px;
+	width: 24px;
+	min-width: 24px;
 	margin-left: auto;
 	position: relative;
 	flex-shrink: 0;
-	box-sizing: border-box;
-	' . ($icon_ring ? 'border: 0.083em solid currentColor;
-	border-radius: 50%;' : 'border: none;
-	border-radius: 0;') . '
-	background: transparent;
+	box-sizing: content-box;
+	transition: transform 0.2s ease-in-out;
 }
 .emg-faq-box .emg-faq-arrow-icon::before,
 .emg-faq-box .emg-faq-arrow-icon::after {
 	content: "";
+	height: 2px;
 	position: absolute;
-	width: 0.52em;
-	height: max(1px, 0.09em);
-	background: currentColor;
-	border-radius: 0.05em;
-	left: 50%;
-	bottom: 0.22em;
-	box-sizing: border-box;
+	top: 11px;
+	width: 12px;
+	background-color: currentColor;
 	transition: transform 0.2s ease-in-out;
 }
 .emg-faq-box .emg-faq-arrow-icon::before {
-	margin-left: -0.52em;
-	transform-origin: 100% 50%;
-	transform: rotate(50deg);
+		left: 2px;
+	transform: rotate(45deg);
+	transform-origin: 50% 50%;
 }
 .emg-faq-box .emg-faq-arrow-icon::after {
-	transform-origin: 0% 50%;
-	transform: rotate(-50deg);
+	right: 2px;
+	transform: rotate(-45deg);
+	transform-origin: 50% 50%;
 }
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon::before {
-	transform: rotate(-50deg);
+	left: 2px;
+	transform: rotate(-45deg);
+	transform-origin: 50% 50%;
+
 }
 .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-arrow-icon::after {
-	transform: rotate(50deg);
+	right: 2px;
+	transform: rotate(45deg);
+	transform-origin: 50% 50%;
 }
 ' : '
 .emg-faq-box .emg-faq-question {
@@ -2160,18 +2159,18 @@ class EMG_FAQ_Plugin
                     </div>
                     <p><button type="button" id="emg-faq-add-item" class="button button-secondary">+ Add FAQ</button></p>
                     <script type="text/template" id="emg-faq-item-template">
-                                    <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
-                                        <p style="margin:0 0 8px;">
-                                            <label><strong>Question</strong></label><br />
-                                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
-                                        </p>
-                                        <p style="margin:0 0 8px;">
-                                            <label><strong>Answer</strong></label><br />
-                                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
-                                        </p>
-                                        <button type="button" class="button emg-faq-remove-item">Remove</button>
-                                    </div>
-                                </script>
+                                            <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
+                                                <p style="margin:0 0 8px;">
+                                                    <label><strong>Question</strong></label><br />
+                                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
+                                                </p>
+                                                <p style="margin:0 0 8px;">
+                                                    <label><strong>Answer</strong></label><br />
+                                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
+                                                </p>
+                                                <button type="button" class="button emg-faq-remove-item">Remove</button>
+                                            </div>
+                                        </script>
 
                     <h2 style="margin-top:24px;"><?php esc_html_e('FAQ Wrapper (Optional)', 'emg-faq'); ?></h2>
                     <p><?php esc_html_e('Use', 'emg-faq'); ?> <code>{{faq_items}}</code>, <code>{{faq_content}}</code>,
