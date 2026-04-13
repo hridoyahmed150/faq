@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EMG FAQ
  * Description: FAQ via shortcode with optional manual schema or auto FAQPage JSON-LD; inner shortcode HTML supported.
- * Version: 2.3.6
+ * Version: 2.3.9
  * Author: Hridoy Ahmed
  */
 
@@ -179,7 +179,7 @@ class EMG_FAQ_Plugin
         }
         self::$faq_assets_enqueued = true;
 
-        wp_register_style(self::STYLE_HANDLE, false, array(), '2.3.6');
+        wp_register_style(self::STYLE_HANDLE, false, array(), '2.3.9');
         wp_enqueue_style(self::STYLE_HANDLE);
         $inline = $this->get_frontend_css();
         $custom = $this->get_frontend_custom_css();
@@ -416,6 +416,10 @@ class EMG_FAQ_Plugin
 	padding-left: 20px;
 }
 
+.emg-faq-box .emg-faq-answer.emg-faq-panel {
+	padding: 0;
+	margin: 0;
+}
 .emg-faq-box .emg-faq-panel {
 	overflow: hidden;
 	max-height: 0;
@@ -899,6 +903,24 @@ class EMG_FAQ_Plugin
         return in_array($value, array('plusminus', 'chevron'), true) ? $value : 'plusminus';
     }
 
+    public function sanitize_icon_position($value)
+    {
+        $v = is_string($value) ? strtolower(trim($value)) : 'right';
+        return in_array($v, array('left', 'right'), true) ? $v : 'right';
+    }
+
+    public function sanitize_icon_size_px($value)
+    {
+        $n = (int) $value;
+        if ($n < 0) {
+            $n = 0;
+        }
+        if ($n > 48) {
+            $n = 48;
+        }
+        return (string) $n;
+    }
+
     public function sanitize_font_size($value)
     {
         $size = (int) $value;
@@ -1066,24 +1088,6 @@ class EMG_FAQ_Plugin
         }
         if ($n > 1500) {
             $n = 1500;
-        }
-        return (string) $n;
-    }
-
-    public function sanitize_icon_position($value)
-    {
-        $v = is_string($value) ? strtolower(trim($value)) : 'right';
-        return in_array($v, array('left', 'right'), true) ? $v : 'right';
-    }
-
-    public function sanitize_icon_size_px($value)
-    {
-        $n = (int) $value;
-        if ($n < 0) {
-            $n = 0;
-        }
-        if ($n > 48) {
-            $n = 48;
         }
         return (string) $n;
     }
@@ -1409,7 +1413,8 @@ class EMG_FAQ_Plugin
             $this->pad_px_for_mode(self::OPT_PAD_Q_LEFT_M, 0, 0, true)
         );
 
-        $a_acc = $root . '[data-emg-faq-mode="accordion"] .emg-faq-box .emg-faq-acc-item.is-open .emg-faq-answer';
+        // Padding on .emg-faq-answer-inner: outer panel stays padding-free so closed state has no gap; inner clips inside max-height animation.
+        $a_acc = $root . '[data-emg-faq-mode="accordion"] .emg-faq-box .emg-faq-acc-item > .emg-faq-answer.emg-faq-panel > .emg-faq-answer-inner';
         $this->append_trbl_padding_css(
             $lines,
             $a_acc,
@@ -1825,7 +1830,7 @@ class EMG_FAQ_Plugin
         $hints = array(
             'c' => __('Wraps the FAQ block and two-column wrapper.', 'emg-faq'),
             'q' => __('The question row (accordion button or plain heading).', 'emg-faq'),
-            'a' => __('The answer area (when accordion row is open, or always in plain mode).', 'emg-faq'),
+            'a' => __('The answer area (accordion: inside the panel content box; plain: the answer block).', 'emg-faq'),
         );
         $uid = 'emg-faq-pad-bp-' . preg_replace('/[^a-z]/', '', $g);
         $g_class = preg_replace('/[^a-z]/', '', $g);
@@ -2159,18 +2164,18 @@ class EMG_FAQ_Plugin
                     </div>
                     <p><button type="button" id="emg-faq-add-item" class="button button-secondary">+ Add FAQ</button></p>
                     <script type="text/template" id="emg-faq-item-template">
-                                            <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
-                                                <p style="margin:0 0 8px;">
-                                                    <label><strong>Question</strong></label><br />
-                                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
-                                                </p>
-                                                <p style="margin:0 0 8px;">
-                                                    <label><strong>Answer</strong></label><br />
-                                                    <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
-                                                </p>
-                                                <button type="button" class="button emg-faq-remove-item">Remove</button>
-                                            </div>
-                                        </script>
+                                                    <div class="emg-faq-admin-item" style="border:1px solid #dcdcde;padding:14px;margin-bottom:12px;background:#fff;">
+                                                        <p style="margin:0 0 8px;">
+                                                            <label><strong>Question</strong></label><br />
+                                                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][question]" rows="3" style="width:100%;"></textarea>
+                                                        </p>
+                                                        <p style="margin:0 0 8px;">
+                                                            <label><strong>Answer</strong></label><br />
+                                                            <textarea name="<?php echo esc_attr(self::OPT_DEFAULT_FAQ); ?>[__INDEX__][answer]" rows="5" style="width:100%;"></textarea>
+                                                        </p>
+                                                        <button type="button" class="button emg-faq-remove-item">Remove</button>
+                                                    </div>
+                                                </script>
 
                     <h2 style="margin-top:24px;"><?php esc_html_e('FAQ Wrapper (Optional)', 'emg-faq'); ?></h2>
                     <p><?php esc_html_e('Use', 'emg-faq'); ?> <code>{{faq_items}}</code>, <code>{{faq_content}}</code>,
@@ -2386,7 +2391,7 @@ class EMG_FAQ_Plugin
                         <summary><?php esc_html_e('Padding', 'emg-faq'); ?></summary>
                         <div class="emg-faq-style-section-inner">
                             <p class="description">
-                                <?php esc_html_e('Container, question row, and answer area. Pick Desktop / Tablet / Mobile from the dropdown, then set Top / Right / Bottom / Left (px). Answer padding applies when an accordion row is open so closed rows stay flush. Plain Q&amp;A defaults to no left/right padding on question and answer until you set values.', 'emg-faq'); ?>
+                                <?php esc_html_e('Container, question row, and answer area. Pick Desktop / Tablet / Mobile from the dropdown, then set Top / Right / Bottom / Left (px). Accordion answer padding applies inside the sliding panel (no extra gap when closed; open/close animation unchanged). Plain Q&amp;A defaults to no left/right padding on question and answer until you set values.', 'emg-faq'); ?>
                             </p>
                             <?php
                             $this->render_admin_trbl_padding_block('c', __('Container padding', 'emg-faq'));
@@ -3347,18 +3352,19 @@ class EMG_FAQ_Plugin
      * @param array<int, array<string, mixed>> $items
      * @param bool   $is_plain
      * @param bool   $open_first_in_list When true, first accordion row starts expanded.
-     * @param bool   $icon_left
      */
-    private function render_faq_item_rows($items, $is_plain, $open_first_in_list = false, $icon_left = false)
+    private function render_faq_item_rows($items, $is_plain, $open_first_in_list = false)
     {
         $html = '';
         $icon_st = $this->sanitize_icon_style((string) get_option(self::OPT_ACCORDION_ICON_STYLE, 'plusminus'));
         $use_line_icon = !$is_plain && $icon_st === 'chevron';
+        $icon_left = $this->sanitize_icon_position((string) get_option(self::OPT_ICON_POSITION, 'right')) === 'left';
         $idx = 0;
 
         foreach ($items as $item) {
             $q_esc = !empty($item['question_is_html']) ? wp_kses_post($item['q']) : esc_html($item['q']);
             $html_ans = !empty($item['answer_is_html']);
+            $ans_body = $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
             $start_open = $open_first_in_list && $idx === 0 && !$is_plain;
             $acc_class = 'emg-faq-item emg-faq-acc-item' . ($start_open ? ' is-open' : '');
             $aria_exp = $start_open ? 'true' : 'false';
@@ -3370,7 +3376,7 @@ class EMG_FAQ_Plugin
                 $html .= '<div class="emg-faq-item">';
                 $html .= '<div class="emg-faq-question-text">' . $q_esc . '</div>';
                 $html .= '<div class="emg-faq-answer">';
-                $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
+                $html .= $ans_body;
                 $html .= '</div></div>';
             } elseif ($use_line_icon) {
                 $btn = 'emg-faq-question emg-faq-question-arrow';
@@ -3388,7 +3394,7 @@ class EMG_FAQ_Plugin
                 }
                 $html .= '</button>';
                 $html .= '<div' . $panel_attrs . '>';
-                $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
+                $html .= '<div class="emg-faq-answer-inner">' . $ans_body . '</div>';
                 $html .= '</div></div>';
             } else {
                 $btn = 'emg-faq-question';
@@ -3400,7 +3406,7 @@ class EMG_FAQ_Plugin
                 $html .= $q_esc;
                 $html .= '</button>';
                 $html .= '<div' . $panel_attrs . '>';
-                $html .= $html_ans ? wp_kses_post($item['a']) : esc_html($item['a']);
+                $html .= '<div class="emg-faq-answer-inner">' . $ans_body . '</div>';
                 $html .= '</div></div>';
             }
             ++$idx;
@@ -3427,7 +3433,6 @@ class EMG_FAQ_Plugin
         $count = count($items);
         $use_two_columns = $two_col_on && $count >= 2;
         $open_first = get_option(self::OPT_OPEN_FIRST, '0') === '1';
-        $icon_left = $this->sanitize_icon_position((string) get_option(self::OPT_ICON_POSITION, 'right')) === 'left';
 
         ob_start();
         if ($use_two_columns) {
@@ -3445,12 +3450,12 @@ class EMG_FAQ_Plugin
                 <div class="emg-faq-cols">
                     <div class="emg-faq-col-left">
                         <div class="<?php echo esc_attr($wrapper_class); ?>">
-                            <?php echo $this->render_faq_item_rows($left_items, $is_plain, $open_first, $icon_left); ?>
+                            <?php echo $this->render_faq_item_rows($left_items, $is_plain, $open_first); ?>
                         </div>
                     </div>
                     <div class="emg-faq-col-right">
                         <div class="<?php echo esc_attr($wrapper_class); ?>">
-                            <?php echo $this->render_faq_item_rows($right_items, $is_plain, false, $icon_left); ?>
+                            <?php echo $this->render_faq_item_rows($right_items, $is_plain, false); ?>
                         </div>
                     </div>
                 </div>
@@ -3462,7 +3467,7 @@ class EMG_FAQ_Plugin
                 <?php if ($title !== ''): ?>
                     <h2 class="emg-faq-title"><?php echo esc_html($title); ?></h2>
                 <?php endif; ?>
-                <?php echo $this->render_faq_item_rows($items, $is_plain, $open_first, $icon_left); ?>
+                <?php echo $this->render_faq_item_rows($items, $is_plain, $open_first); ?>
             </div>
             <?php
         }
